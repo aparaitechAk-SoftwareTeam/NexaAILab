@@ -80,3 +80,4 @@ Runs at: `http://localhost:5174`
 - **Email**: `admin@example.com`
 - **Password**: `Admin@123`
 *(A convenient "Auto-fill Demo Credentials" button is also provided on the admin login screen)*
+"# NexaAILab" 
