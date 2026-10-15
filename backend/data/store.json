@@ -506,6 +506,25 @@
   ],
   "leads": [
     {
+      "_id": "mv4vplvah0rjxt",
+      "name": "pnaorbit Software",
+      "code": "+91",
+      "mobile": "01234567890",
+      "email": "pnaorbitsoftware@gmail.com",
+      "city": "Pune (Hinjawadi)",
+      "course": "Data Analytics with AI Course - Classroom Bootcamp (Classroom Bootcamp Weekdays (Monday to Friday))",
+      "source": "Batch Slot & Seat Appointment Booking",
+      "notes": "",
+      "preferredSlot": "9:30 AM - 1:30 PM (4 Hours / Day • Mon to Fri) - Starts 12th Jan 2027",
+      "date": "12th Jan 2027",
+      "time": "9:30 AM - 1:30 PM (4 Hours / Day • Mon to Fri)",
+      "passId": "PASS-PUNE-JAN-285612",
+      "background": "",
+      "status": "Closed",
+      "createdAt": "2026-10-12T06:36:30.070Z",
+      "updatedAt": "2026-10-12T06:37:25.530Z"
+    },
+    {
       "_id": "mv20z1rsfk1knu",
       "name": "AI BOT APARAITECH",
       "code": "+91",
@@ -520,9 +539,9 @@
       "time": "2:00 PM - 6:00 PM (4 Hours / Day)",
       "passId": "PASS-PUNE-JAN-323751",
       "background": "",
-      "status": "New",
+      "status": "Contacted",
       "createdAt": "2026-10-10T06:40:30.136Z",
-      "updatedAt": "2026-10-10T06:40:30.136Z"
+      "updatedAt": "2026-10-12T06:37:30.778Z"
     },
     {
       "_id": "mv1zeg5cjibo4r",
