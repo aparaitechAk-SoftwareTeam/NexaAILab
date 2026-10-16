@@ -1233,7 +1233,8 @@ function App() {
   const [masterclassModal, setMasterclassModal] = useState(false);
   const [counselorModal, setCounselorModal] = useState(false);
   const [authModal, setAuthModal] = useState(null); // 'signin' | 'signup' | 'admin' | null
-  const [adminLoginForm, setAdminLoginForm] = useState({ email: 'admin@example.com', password: 'Admin@123' });
+  const [adminLoginForm, setAdminLoginForm] = useState({ email: '', password: '' });
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [adminLoginMsg, setAdminLoginMsg] = useState({ type: '', text: '' });
   const [selectedReport, setSelectedReport] = useState(null);
@@ -1966,20 +1967,13 @@ function App() {
             </div>
 
             <button
-              className={`nav-link ${currentPage === 'batches' && selectedCityTab.includes('Pune') ? 'active' : ''}`}
+              className={`nav-link ${currentPage === 'batches' ? 'active' : ''}`}
               onClick={() => { setSelectedCityTab('Pune Branch (Hinjawadi Phase 1)'); navigateTo('batches'); }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
             >
-              <MapPin size={15} className="text-mint" />
-              <span>Pune Branch</span>
+              <Calendar size={14} className="text-mint" />
+              <span>Batches & Labs</span>
               <span className="badge-new-pill" style={{ background: '#00e5a3', color: '#04101e', fontWeight: 700 }}>JAN 2027</span>
-            </button>
-
-            <button
-              className={`nav-link ${currentPage === 'batches' && !selectedCityTab.includes('Pune') ? 'active' : ''}`}
-              onClick={() => navigateTo('batches')}
-            >
-              Upcoming Batches
             </button>
 
             <button
@@ -1987,9 +1981,16 @@ function App() {
               onClick={() => navigateTo('robotics-lab')}
               title="AI & Robotics Build Lab - Physical Hardware & Research Facility"
             >
-              <Cpu size={15} className="icon-pulse" />
+              <Cpu size={14} className="icon-pulse" />
               <span>AI & ROBOTICS LAB</span>
               <span className="badge-new-pill">LAB</span>
+            </button>
+
+            <button
+              className={`nav-link ${currentPage === 'placements' ? 'active' : ''}`}
+              onClick={() => navigateTo('placements')}
+            >
+              Placements
             </button>
 
             {/* More Dropdown */}
@@ -5315,23 +5316,34 @@ function App() {
 
                 <form onSubmit={handleAdminLoginSubmit}>
                   <div className="form-field">
-                    <label>Administrator Email *</label>
+                    <label>Administrator Email / Username *</label>
                     <input
                       type="email"
                       required
-                      placeholder="admin@example.com"
+                      placeholder="Enter admin email address"
                       value={adminLoginForm.email}
                       onChange={e => setAdminLoginForm({ ...adminLoginForm, email: e.target.value })}
+                      autoComplete="username"
                     />
                   </div>
                   <div className="form-field">
-                    <label>Security Password *</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ margin: 0 }}>Security Password *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminPassword(!showAdminPassword)}
+                        style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {showAdminPassword ? <><EyeOff size={13} /> Hide</> : <><Eye size={13} /> Show</>}
+                      </button>
+                    </div>
                     <input
-                      type="password"
+                      type={showAdminPassword ? 'text' : 'password'}
                       required
                       placeholder="Enter admin password"
                       value={adminLoginForm.password}
                       onChange={e => setAdminLoginForm({ ...adminLoginForm, password: e.target.value })}
+                      autoComplete="current-password"
                     />
                   </div>
 
@@ -5342,7 +5354,7 @@ function App() {
                   >
                     {adminLoginLoading ? (
                       <>
-                        <RefreshCw size={17} className="animate-spin inline mr-2" /> Authenticating Super Admin...
+                        <RefreshCw size={17} className="animate-spin inline mr-2" /> Authenticating Administrator...
                       </>
                     ) : (
                       <>
@@ -5352,17 +5364,6 @@ function App() {
                   </button>
 
                   <div className="admin-auth-footer-actions">
-                    <button
-                      type="button"
-                      className="btn-text-link"
-                      onClick={() => {
-                        setAdminLoginForm({ email: 'admin@example.com', password: 'Admin@123' });
-                        showToast('✓ Auto-filled Super Admin credentials: admin@example.com / Admin@123');
-                      }}
-                    >
-                      Quick Auto-Fill Super Admin Credentials
-                    </button>
-
                     <div className="admin-direct-launch-box">
                       <span>Direct Standalone Access:</span>
                       <a

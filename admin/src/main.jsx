@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   LayoutDashboard, BookOpen, Users, MessageSquareText, FileText,
   HelpCircle, LogOut, Trash2, Plus, RefreshCw, Edit, Check, Search,
-  Eye, Filter, ShieldCheck, Database, Calendar, Clock, MapPin,
+  Eye, EyeOff, Filter, ShieldCheck, Database, Calendar, Clock, MapPin,
   Sparkles, ExternalLink, X, Cpu, Percent, Zap, Ticket, Phone, Mail,
   CheckCircle2, AlertCircle, ArrowUpRight, LayoutGrid, List, Columns3
 } from 'lucide-react';
@@ -105,8 +105,9 @@ function App() {
     const s = localStorage.getItem('admin_user');
     return s ? JSON.parse(s) : null;
   });
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('Admin@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginMsg, setLoginMsg] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -497,51 +498,45 @@ function App() {
           </div>
 
           <h2>Sign in to Admin Portal</h2>
-          <p className="login-sub">Manage courses, review student leads, and monitor reports.</p>
-
           <form onSubmit={handleLogin} className="login-form">
             <div className="form-group">
-              <label>Admin Email</label>
+              <label>Admin Email / Username</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="admin@example.com"
+                placeholder="Enter admin email"
+                autoComplete="username"
               />
             </div>
 
             <div className="form-group">
-              <label>Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ margin: 0 }}>Password</label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  {showPassword ? <><EyeOff size={13} /> Hide</> : <><Eye size={13} /> Show</>}
+                </button>
+              </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter admin password"
+                autoComplete="current-password"
               />
             </div>
 
             <button type="submit" className="btn-signin-submit" disabled={loginLoading}>
-              {loginLoading ? 'Authenticating...' : 'Sign In'}
+              {loginLoading ? 'Authenticating...' : 'Sign In to Dashboard'}
             </button>
 
             {loginMsg && <div className="login-error-alert">{loginMsg}</div>}
-
-            <div className="demo-credentials-box">
-              <span>Default Credentials:</span>
-              <code>admin@example.com / Admin@123</code>
-              <button
-                type="button"
-                className="btn-autofill"
-                onClick={() => {
-                  setEmail('admin@example.com');
-                  setPassword('Admin@123');
-                }}
-              >
-                Auto-fill Demo Credentials
-              </button>
-            </div>
           </form>
 
           <div className="login-footer">

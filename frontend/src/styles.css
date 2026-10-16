@@ -304,19 +304,21 @@ button {
 .header-right-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .header-phone-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 5px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #003f78;
   background: #f0f7fd;
-  padding: 8px 14px;
+  padding: 0 12px;
+  height: 36px;
+  box-sizing: border-box;
   border-radius: 20px;
   border: 1px solid #d8eaf5;
   text-decoration: none;
@@ -334,12 +336,14 @@ button {
   background: #e6fff9;
   color: #0a846c;
   font-weight: 700;
-  padding: 8px 16px;
+  padding: 0 14px;
+  height: 36px;
+  box-sizing: border-box;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12.5px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border: 1px solid #b2f5ea;
   cursor: pointer;
   white-space: nowrap;
@@ -355,7 +359,7 @@ button {
 .header-auth-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .btn-signin {
@@ -363,10 +367,15 @@ button {
   border: 1px solid #c9e4f5;
   color: #003f78;
   font-weight: 700;
-  font-size: 13px;
-  padding: 8px 14px;
+  font-size: 12.5px;
+  padding: 0 13px;
+  height: 36px;
+  box-sizing: border-box;
   border-radius: 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .btn-signin:hover {
@@ -374,9 +383,14 @@ button {
 }
 
 .nav-register-btn {
-  font-size: 13px;
-  padding: 8px 16px;
+  font-size: 12.5px;
+  padding: 0 14px;
+  height: 36px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
+  border-radius: 6px;
 }
 
 .user-logged-pill {
@@ -7786,29 +7800,51 @@ img, svg, video, canvas {
   display: none;
 }
 
-/* ================= LARGE SCREENS & DESKTOPS (> 1220px) ================= */
-@media (min-width: 1221px) {
+/* ================= LARGE SCREENS & DESKTOPS (> 1260px) ================= */
+@media (min-width: 1261px) {
+  .header-container {
+    max-width: 1380px;
+    height: 72px;
+    padding: 0 24px;
+    gap: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
   .nav-desktop {
     display: flex !important;
     align-items: center;
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: 4px;
   }
   .mobile-hamburger-btn {
     display: none !important;
   }
 }
 
-/* ================= LAPTOPS & TABLETS (992px to 1220px) ================= */
-@media (max-width: 1220px) {
+/* ================= LAPTOPS & TABLETS (769px to 1260px) ================= */
+@media (max-width: 1260px) {
+  .header-container {
+    height: 70px;
+    padding: 0 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 10px;
+  }
   .nav-desktop {
     display: none !important;
   }
   .mobile-hamburger-btn {
-    display: flex !important;
-  }
-  .header-container {
-    padding: 0 20px;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    box-sizing: border-box;
   }
   .courses-grid-3 {
     grid-template-columns: repeat(2, 1fr);
@@ -7852,8 +7888,8 @@ img, svg, video, canvas {
   }
 }
 
-/* ================= MOBILE PHONES (<= 767px) ================= */
-@media (max-width: 767px) {
+/* ================= MOBILE PHONES (<= 768px) ================= */
+@media (max-width: 768px) {
   .container {
     padding-left: 16px;
     padding-right: 16px;
@@ -7862,8 +7898,37 @@ img, svg, video, canvas {
     padding: 48px 0;
   }
   .header-container {
-    height: 68px;
+    height: 66px;
     padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
+  .phone-text,
+  .lms-btn-text,
+  .admin-btn-text,
+  .header-auth-group {
+    display: none !important;
+  }
+  .header-phone-btn,
+  .btn-admin-header,
+  .btn-student-portal {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .mobile-hamburger-btn {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   .hero-title {
     font-size: clamp(24px, 6vw, 32px);
@@ -7918,11 +7983,11 @@ img, svg, video, canvas {
 /* ================= SMALL PHONES (<= 480px) ================= */
 @media (max-width: 480px) {
   .container {
-    padding-left: 14px;
-    padding-right: 14px;
+    padding-left: 12px;
+    padding-right: 12px;
   }
   .header-container {
-    height: 64px;
+    height: 62px;
     padding: 0 12px;
   }
   .logo-text {
@@ -7935,14 +8000,17 @@ img, svg, video, canvas {
   .logo-sub {
     font-size: 8px;
   }
-  .phone-text,
-  .lms-btn-text {
+  .btn-student-portal {
     display: none !important;
   }
+  .header-right-actions {
+    gap: 6px;
+  }
   .header-phone-btn,
-  .btn-student-portal {
-    padding: 8px 10px;
-    border-radius: 50%;
+  .btn-admin-header,
+  .mobile-hamburger-btn {
+    width: 34px !important;
+    height: 34px !important;
   }
   .hero-title {
     font-size: 24px;
