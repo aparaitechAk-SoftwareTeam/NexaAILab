@@ -2010,6 +2010,13 @@ function App() {
                       <small>500+ Hiring partners, 96% placement rate</small>
                     </div>
                   </div>
+                  <div className="more-dropdown-item" onClick={() => navigateTo('student-portal')}>
+                    <GraduationCap size={16} className="text-mint" />
+                    <div>
+                      <b>Student LMS Portal</b>
+                      <small>Live classes, assignments & recordings</small>
+                    </div>
+                  </div>
                   <div className="more-dropdown-item" onClick={() => navigateTo('partnerships')}>
                     <Award size={16} className="text-yellow" />
                     <div>
@@ -2060,22 +2067,26 @@ function App() {
           {/* Header Right Actions */}
           <div className="header-right-actions">
             <a href="tel:+917218802129" className="header-phone-btn" title="Admissions Helpline: +91 72188 02129">
-              <Phone size={15} />
+              <Phone size={14} />
               <span className="phone-text">+91 72188 02129</span>
             </a>
 
             <button
-              className={`btn-student-portal ${currentPage === 'student-portal' ? 'active' : ''}`}
-              onClick={() => navigateTo('student-portal')}
-              title="Student Learning Management System"
+              className="btn-admin-header"
+              onClick={() => {
+                setAdminLoginForm({ email: '', password: '' });
+                setAdminLoginMsg({ type: '', text: '' });
+                setAuthModal('admin');
+              }}
+              title="Admin & Staff Portal"
             >
-              <GraduationCap size={16} />
-              <span className="lms-btn-text">LMS Portal</span>
+              <Shield size={13} className="text-cyan" />
+              <span className="admin-btn-text">Admin</span>
             </button>
 
             {userAuth ? (
               <div className="user-logged-pill">
-                <User size={15} />
+                <User size={14} />
                 <span className="user-name-text">{userAuth.name.split(' ')[0]}</span>
                 <button
                   className="btn-logout"
@@ -2092,17 +2103,6 @@ function App() {
               </div>
             ) : (
               <div className="header-auth-group">
-                <button
-                  className="btn-admin-header"
-                  onClick={() => {
-                    setAdminLoginMsg({ type: '', text: '' });
-                    setAuthModal('admin');
-                  }}
-                  title="Admin & Staff Portal"
-                >
-                  <Shield size={13} className="text-cyan" />
-                  <span>Admin</span>
-                </button>
                 <button className="btn-signin" onClick={() => setAuthModal('signin')}>
                   Sign In
                 </button>
@@ -2118,7 +2118,7 @@ function App() {
               onClick={() => setNav(true)}
               aria-label="Open Navigation Menu"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
           </div>
         </div>
@@ -5403,22 +5403,6 @@ function App() {
                   <button type="submit" className="btn-primary full-width large">
                     {authModal === 'signin' ? 'Sign In to Student Portal' : 'Create Free Account'}
                   </button>
-
-                  <div className="demo-fill-btn-wrap">
-                    <button
-                      type="button"
-                      className="btn-text-link"
-                      onClick={() => {
-                        const demoUser = { name: 'Pooja Nair', email: 'pooja.nair@example.com', enrolled: ['c1'] };
-                        localStorage.setItem('nexa_user', JSON.stringify(demoUser));
-                        setUserAuth(demoUser);
-                        setAuthModal(null);
-                        showToast('Logged in as Demo Student Pooja Nair');
-                      }}
-                    >
-                      Quick Auto-Fill Demo Student Account
-                    </button>
-                  </div>
                 </form>
               </div>
             )}
