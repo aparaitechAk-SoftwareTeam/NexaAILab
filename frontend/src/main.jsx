@@ -1921,7 +1921,7 @@ function App() {
             <div className="logo-text">
               NEXA<span className="logo-x">AI</span> LAB
             </div>
-            <span className="logo-sub">EdTech • NASSCOM FutureSkills Prime Partner</span>
+            <span className="logo-sub">EdTech • NASSCOM Accredited</span>
           </div>
 
           {/* Desktop Navigation (>= 1180px) */}
