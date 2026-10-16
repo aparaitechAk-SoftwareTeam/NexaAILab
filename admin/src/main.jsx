@@ -76,8 +76,32 @@ const formatSlotTimings = (slot, date, time) => {
 };
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [token, setToken] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        const urlUser = params.get('user');
+        if (urlUser) {
+          try {
+            localStorage.setItem('admin_user', decodeURIComponent(urlUser));
+          } catch (e) {}
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return urlToken;
+      }
+    } catch (e) {}
+    return localStorage.getItem('token') || '';
+  });
   const [user, setUser] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlUser = params.get('user');
+      if (urlUser) {
+        return JSON.parse(decodeURIComponent(urlUser));
+      }
+    } catch (e) {}
     const s = localStorage.getItem('admin_user');
     return s ? JSON.parse(s) : null;
   });

@@ -8,11 +8,12 @@ import {
   Building2, Laptop, Lightbulb, MessageSquare, Star, Check, ArrowRight,
   Play, FileText, Share2, HelpCircle, Layers, Shield, Sparkle, RefreshCw,
   Filter, Bookmark, Eye, ThumbsUp, Code, DollarSign, Percent, BarChart3,
-  Target, Zap, QrCode, Printer
+  Target, Zap, QrCode, Printer, AlertCircle, Lock
 } from 'lucide-react';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const ADMIN_PORTAL_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
 
 const parsePriceNumber = (val, fallback = 55000) => {
   if (!val) return fallback;
@@ -1231,7 +1232,10 @@ function App() {
   const [selectedCourseModal, setSelectedCourseModal] = useState(null);
   const [masterclassModal, setMasterclassModal] = useState(false);
   const [counselorModal, setCounselorModal] = useState(false);
-  const [authModal, setAuthModal] = useState(null); // 'signin' | 'signup' | null
+  const [authModal, setAuthModal] = useState(null); // 'signin' | 'signup' | 'admin' | null
+  const [adminLoginForm, setAdminLoginForm] = useState({ email: 'admin@example.com', password: 'Admin@123' });
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
+  const [adminLoginMsg, setAdminLoginMsg] = useState({ type: '', text: '' });
   const [selectedReport, setSelectedReport] = useState(null);
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [quizModal, setQuizModal] = useState(false);
@@ -1628,6 +1632,49 @@ function App() {
     });
 
     showToast(`✓ Confirmed slot booked for ${bookingForm.name}! Pass ticket generated.`);
+  };
+
+  const handleAdminLoginSubmit = async (e) => {
+    e.preventDefault();
+    setAdminLoginLoading(true);
+    setAdminLoginMsg({ type: '', text: '' });
+    try {
+      const res = await fetch(`${API}/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: adminLoginForm.email.trim(),
+          password: adminLoginForm.password
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        setAdminLoginMsg({
+          type: 'success',
+          text: `Authentication successful! Launching Admin Dashboard...`
+        });
+        showToast('✓ Super Admin authenticated! Opening Admin Dashboard...');
+        
+        const targetUrl = `${ADMIN_PORTAL_URL}?token=${encodeURIComponent(data.token)}&user=${encodeURIComponent(JSON.stringify(data.user || { name: 'Super Admin', email: adminLoginForm.email }))}`;
+        
+        setTimeout(() => {
+          setAuthModal(null);
+          window.open(targetUrl, '_blank') || (window.location.href = targetUrl);
+        }, 700);
+      } else {
+        setAdminLoginMsg({
+          type: 'error',
+          text: data.message || 'Invalid administrator email or password.'
+        });
+      }
+    } catch (err) {
+      setAdminLoginMsg({
+        type: 'error',
+        text: 'Unable to connect to backend server on port 5000. Please ensure the backend is running.'
+      });
+    } finally {
+      setAdminLoginLoading(false);
+    }
   };
 
   const handleVerifyCert = async (customId) => {
@@ -2044,6 +2091,17 @@ function App() {
               </div>
             ) : (
               <div className="header-auth-group">
+                <button
+                  className="btn-admin-header"
+                  onClick={() => {
+                    setAdminLoginMsg({ type: '', text: '' });
+                    setAuthModal('admin');
+                  }}
+                  title="Admin & Staff Portal"
+                >
+                  <Shield size={13} className="text-cyan" />
+                  <span>Admin</span>
+                </button>
                 <button className="btn-signin" onClick={() => setAuthModal('signin')}>
                   Sign In
                 </button>
@@ -2112,11 +2170,34 @@ function App() {
                   <button className="btn-primary full-width small" onClick={() => { setNav(false); setAuthModal('signup'); }}>
                     Create Free Account
                   </button>
+                  <button
+                    className="btn-admin-drawer-auth full-width"
+                    onClick={() => {
+                      setNav(false);
+                      setAdminLoginMsg({ type: '', text: '' });
+                      setAuthModal('admin');
+                    }}
+                  >
+                    <Shield size={14} className="text-cyan" /> Admin Sign In (Staff)
+                  </button>
                 </div>
               )}
             </div>
 
             <div className="drawer-nav-list">
+              <button
+                className="drawer-link-item drawer-admin-link"
+                onClick={() => {
+                  setNav(false);
+                  setAdminLoginMsg({ type: '', text: '' });
+                  setAuthModal('admin');
+                }}
+              >
+                <Shield size={18} className="text-cyan" />
+                <span>Admin Sign In & CRM</span>
+                <span className="drawer-badge" style={{ background: '#0284c7', color: '#fff' }}>Staff</span>
+              </button>
+
               <button
                 className={`drawer-link-item ${currentPage === 'student-portal' ? 'active' : ''}`}
                 onClick={() => navigateTo('student-portal')}
@@ -4665,7 +4746,10 @@ function App() {
             <a onClick={() => navigateTo('faculty')}>Elite Faculty & Mentors</a>
             <a onClick={() => navigateTo('student-portal')}>Student LMS Portal</a>
             <a onClick={() => navigateTo('resources')}>Free Learning Resources</a>
-            <a href="http://localhost:5174" target="_blank" rel="noreferrer">
+            <a onClick={() => { setAdminLoginMsg({ type: '', text: '' }); setAuthModal('admin'); }}>
+              <Shield size={13} className="inline mr-1 text-cyan" /> Admin Sign In (Staff)
+            </a>
+            <a href={ADMIN_PORTAL_URL} target="_blank" rel="noreferrer">
               Admin Portal <ExternalLink size={13} />
             </a>
           </div>
@@ -4682,6 +4766,10 @@ function App() {
               <a onClick={() => setQuizModal(true)}>Career Quiz</a>
               <span>•</span>
               <a onClick={() => navigateTo('contact')}>Campuses</a>
+              <span>•</span>
+              <a onClick={() => { setAdminLoginMsg({ type: '', text: '' }); setAuthModal('admin'); }}>
+                <Shield size={12} className="inline mr-1 text-cyan" /> Admin Login
+              </a>
             </div>
           </div>
         </div>
@@ -5180,60 +5268,159 @@ function App() {
             <div className="auth-modal-tabs">
               <button
                 className={`auth-tab ${authModal === 'signin' ? 'active' : ''}`}
-                onClick={() => setAuthModal('signin')}
+                onClick={() => {
+                  setAdminLoginMsg({ type: '', text: '' });
+                  setAuthModal('signin');
+                }}
               >
-                Sign In
+                Student Sign In
               </button>
               <button
                 className={`auth-tab ${authModal === 'signup' ? 'active' : ''}`}
-                onClick={() => setAuthModal('signup')}
+                onClick={() => {
+                  setAdminLoginMsg({ type: '', text: '' });
+                  setAuthModal('signup');
+                }}
               >
                 Create Account
               </button>
+              <button
+                className={`auth-tab admin-tab ${authModal === 'admin' ? 'active' : ''}`}
+                onClick={() => setAuthModal('admin')}
+              >
+                <Shield size={14} className="inline mr-1 text-cyan" />
+                Admin Sign In
+              </button>
             </div>
 
-            <div className="auth-form-wrap">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const emailInput = e.target.querySelector('input[type="email"]')?.value || 'student@nexaailab.com';
-                const namePart = emailInput.split('@')[0].replace(/[._]/g, ' ');
-                const studentName = namePart ? namePart.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Student';
-                const loggedUser = { name: studentName, email: emailInput, enrolled: ['c1', 'c2'] };
-                localStorage.setItem('nexa_user', JSON.stringify(loggedUser));
-                setUserAuth(loggedUser);
-                setAuthModal(null);
-                showToast(`Welcome back, ${loggedUser.name}!`);
-              }}>
-                <div className="form-field">
-                  <label>Email Address</label>
-                  <input type="email" placeholder="Enter your email address" required />
-                </div>
-                <div className="form-field">
-                  <label>Password</label>
-                  <input type="password" placeholder="Enter your password" required />
+            {authModal === 'admin' ? (
+              <div className="auth-form-wrap admin-auth-wrap">
+                <div className="admin-auth-header-card">
+                  <div className="admin-badge-row">
+                    <span className="admin-shield-tag">
+                      <Shield size={13} /> Official Admissions & CRM
+                    </span>
+                    <span className="admin-port-tag">Port 5174</span>
+                  </div>
+                  <h3>NexaAI Lab Admin Console</h3>
+                  <p>Restricted access for Admissions Team, Instructors & System Administrators to manage real-time leads, courses, batches, and portal settings.</p>
                 </div>
 
-                <button type="submit" className="btn-primary full-width large">
-                  {authModal === 'signin' ? 'Sign In to Portal' : 'Create Free Account'}
-                </button>
+                {adminLoginMsg.text && (
+                  <div className={`admin-login-alert ${adminLoginMsg.type}`}>
+                    {adminLoginMsg.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+                    <span>{adminLoginMsg.text}</span>
+                  </div>
+                )}
 
-                <div className="demo-fill-btn-wrap">
+                <form onSubmit={handleAdminLoginSubmit}>
+                  <div className="form-field">
+                    <label>Administrator Email *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin@example.com"
+                      value={adminLoginForm.email}
+                      onChange={e => setAdminLoginForm({ ...adminLoginForm, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Security Password *</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Enter admin password"
+                      value={adminLoginForm.password}
+                      onChange={e => setAdminLoginForm({ ...adminLoginForm, password: e.target.value })}
+                    />
+                  </div>
+
                   <button
-                    type="button"
-                    className="btn-text-link"
-                    onClick={() => {
-                      const demoUser = { name: 'Pooja Nair', email: 'pooja.nair@example.com', enrolled: ['c1'] };
-                      localStorage.setItem('nexa_user', JSON.stringify(demoUser));
-                      setUserAuth(demoUser);
-                      setAuthModal(null);
-                      showToast('Logged in as Demo Student Pooja Nair');
-                    }}
+                    type="submit"
+                    className="btn-primary full-width large btn-admin-submit"
+                    disabled={adminLoginLoading}
                   >
-                    Quick Auto-Fill Demo Student Account
+                    {adminLoginLoading ? (
+                      <>
+                        <RefreshCw size={17} className="animate-spin inline mr-2" /> Authenticating Super Admin...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck size={18} className="inline mr-2" /> Sign In to Admin Console
+                      </>
+                    )}
                   </button>
-                </div>
-              </form>
-            </div>
+
+                  <div className="admin-auth-footer-actions">
+                    <button
+                      type="button"
+                      className="btn-text-link"
+                      onClick={() => {
+                        setAdminLoginForm({ email: 'admin@example.com', password: 'Admin@123' });
+                        showToast('✓ Auto-filled Super Admin credentials: admin@example.com / Admin@123');
+                      }}
+                    >
+                      Quick Auto-Fill Super Admin Credentials
+                    </button>
+
+                    <div className="admin-direct-launch-box">
+                      <span>Direct Standalone Access:</span>
+                      <a
+                        href={ADMIN_PORTAL_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-admin-direct-link"
+                      >
+                        Launch Admin Dashboard (Port 5174) <ExternalLink size={13} />
+                      </a>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="auth-form-wrap">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const emailInput = e.target.querySelector('input[type="email"]')?.value || 'student@nexaailab.com';
+                  const namePart = emailInput.split('@')[0].replace(/[._]/g, ' ');
+                  const studentName = namePart ? namePart.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Student';
+                  const loggedUser = { name: studentName, email: emailInput, enrolled: ['c1', 'c2'] };
+                  localStorage.setItem('nexa_user', JSON.stringify(loggedUser));
+                  setUserAuth(loggedUser);
+                  setAuthModal(null);
+                  showToast(`Welcome back, ${loggedUser.name}!`);
+                }}>
+                  <div className="form-field">
+                    <label>Email Address</label>
+                    <input type="email" placeholder="Enter your email address" required />
+                  </div>
+                  <div className="form-field">
+                    <label>Password</label>
+                    <input type="password" placeholder="Enter your password" required />
+                  </div>
+
+                  <button type="submit" className="btn-primary full-width large">
+                    {authModal === 'signin' ? 'Sign In to Student Portal' : 'Create Free Account'}
+                  </button>
+
+                  <div className="demo-fill-btn-wrap">
+                    <button
+                      type="button"
+                      className="btn-text-link"
+                      onClick={() => {
+                        const demoUser = { name: 'Pooja Nair', email: 'pooja.nair@example.com', enrolled: ['c1'] };
+                        localStorage.setItem('nexa_user', JSON.stringify(demoUser));
+                        setUserAuth(demoUser);
+                        setAuthModal(null);
+                        showToast('Logged in as Demo Student Pooja Nair');
+                      }}
+                    >
+                      Quick Auto-Fill Demo Student Account
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}
