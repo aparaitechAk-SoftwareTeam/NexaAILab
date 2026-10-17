@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   LayoutDashboard, BookOpen, Users, MessageSquareText, FileText,
@@ -75,6 +75,25 @@ const formatSlotTimings = (slot, date, time) => {
   return { timePart, datePart };
 };
 
+const playLeadChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
+};
+
 function App() {
   const [token, setToken] = useState(() => {
     try {
@@ -137,10 +156,11 @@ function App() {
     } catch (e) {}
   };
 
-  // Auto-Refresh state (background polling every 10 seconds)
+  // Auto-Refresh state (background polling every 4 seconds)
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(new Date());
+  const prevLeadIdsRef = useRef(null);
 
   // Leads card display format: 'pipeline' (proper status column cards) or 'grid' (all cards grid)
   const [leadsGrouping, setLeadsGrouping] = useState(() => {
@@ -236,16 +256,35 @@ function App() {
     if (!token) return;
     if (showLoading) setLoading(true);
     try {
+      let leadsToInspect = [];
       if (page === 'dashboard') {
         const s = await api('/stats');
         setStats(s || {});
-        // Also fetch recent leads
         const l = await api('/leads');
-        setData(Array.isArray(l) ? l.slice(0, 5) : []);
+        leadsToInspect = Array.isArray(l) ? l : [];
+        setData(leadsToInspect.slice(0, 5));
+      } else if (page === 'leads') {
+        const res = await api('/leads');
+        leadsToInspect = Array.isArray(res) ? res : [];
+        setData(leadsToInspect);
       } else {
         const res = await api(`/${page}`);
         setData(Array.isArray(res) ? res : []);
       }
+
+      // Live inquiry detection & instant audio chime
+      if (leadsToInspect.length > 0) {
+        if (prevLeadIdsRef.current !== null) {
+          const incomingNew = leadsToInspect.filter(item => item._id && !prevLeadIdsRef.current.has(item._id));
+          if (incomingNew.length > 0) {
+            playLeadChime();
+            const firstNew = incomingNew[0];
+            showToast(`🔔 Live Inquiry Received: ${firstNew.name} - ${firstNew.course || 'Admissions'}!`, 'success');
+          }
+        }
+        prevLeadIdsRef.current = new Set(leadsToInspect.map(item => item._id));
+      }
+
       setLastRefreshedAt(new Date());
     } catch (e) {
       console.error(e);
@@ -255,12 +294,12 @@ function App() {
     }
   };
 
-  // Background Auto-Refresh interval (every 10 seconds live sync)
+  // Background Auto-Refresh interval (real-time 4-second live sync)
   useEffect(() => {
     if (!token || !autoRefresh) return;
     const timer = setInterval(() => {
       loadData(false);
-    }, 10000);
+    }, 4000);
     return () => clearInterval(timer);
   }, [token, page, autoRefresh]);
 
@@ -780,9 +819,14 @@ function App() {
           </div>
 
           <div className="topbar-actions">
-            <button className="btn-refresh" onClick={loadData} disabled={loading}>
-              <RefreshCw size={16} className={loading ? 'spin' : ''} />
-              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+            <div className="live-sync-indicator" title="MongoDB Atlas live sync polling active (4s)">
+              <span className="live-pulse-dot"></span>
+              <span className="live-sync-text">LIVE SYNC (4s)</span>
+              <span className="live-sync-time">{lastRefreshedAt.toLocaleTimeString()}</span>
+            </div>
+            <button className="btn-refresh" onClick={handleManualRefresh} disabled={loading || isRefreshing}>
+              <RefreshCw size={16} className={(loading || isRefreshing) ? 'spin' : ''} />
+              <span>{(loading || isRefreshing) ? 'Refreshing...' : 'Refresh'}</span>
             </button>
           </div>
         </header>

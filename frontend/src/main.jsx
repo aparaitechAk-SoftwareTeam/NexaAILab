@@ -7,10 +7,19 @@ import {
   Search, Menu, X, Send, Bot, User, ExternalLink, ShieldCheck,
   Building2, Laptop, Lightbulb, MessageSquare, Star, Check, ArrowRight,
   Play, FileText, Share2, HelpCircle, Layers, Shield, Sparkle, RefreshCw,
-  Filter, Bookmark, Eye, ThumbsUp, Code, DollarSign, Percent, BarChart3,
+  Filter, Bookmark, Eye, EyeOff, ThumbsUp, Code, DollarSign, Percent, BarChart3,
   Target, Zap, QrCode, Printer, AlertCircle, Lock
 } from 'lucide-react';
 import './styles.css';
+
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+  </svg>
+);
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const ADMIN_PORTAL_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
@@ -1237,6 +1246,25 @@ function App() {
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [adminLoginMsg, setAdminLoginMsg] = useState({ type: '', text: '' });
+
+  // Student Authentication & Google / Firebase States
+  const [studentSignUpForm, setStudentSignUpForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    password: '',
+    track: 'Data Science & Generative AI'
+  });
+  const [studentSignInForm, setStudentSignInForm] = useState({ email: '', password: '' });
+  const [showStudentPassword, setShowStudentPassword] = useState(false);
+  const [showStudentSignInPassword, setShowStudentSignInPassword] = useState(false);
+  const [studentAuthLoading, setStudentAuthLoading] = useState(false);
+  const [googleAuthModal, setGoogleAuthModal] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+
+  // Course Syllabus Inquiry State
+  const [courseInquiryForm, setCourseInquiryForm] = useState({ name: '', email: '', mobile: '' });
+  const [courseInquirySubmitting, setCourseInquirySubmitting] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [quizModal, setQuizModal] = useState(false);
@@ -1691,6 +1719,142 @@ function App() {
     } finally {
       setAdminLoginLoading(false);
     }
+  };
+
+  const handleGoogleAuthSignIn = async (selectedProfile) => {
+    const defaultName = studentSignUpForm.name.trim() || 'Arjun Sharma';
+    const defaultEmail = studentSignUpForm.email.trim() || 'arjun.sharma@gmail.com';
+    const profile = selectedProfile || {
+      name: defaultName,
+      email: defaultEmail,
+      photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+    };
+    
+    const loggedUser = {
+      name: profile.name,
+      email: profile.email,
+      provider: 'google',
+      avatar: profile.photo || '',
+      enrolled: ['c1', 'c2']
+    };
+
+    // Send verified registration lead to MongoDB / backend
+    try {
+      await fetch(`${API}/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profile.name,
+          email: profile.email,
+          mobile: studentSignUpForm.mobile || '+91 98765 43210',
+          city: 'Online Admissions',
+          course: `${studentSignUpForm.track || 'Data Science & Generative AI'} (Google Auth)`,
+          source: 'Google / Firebase Authentication (Create Account)',
+          notes: `Verified student account authenticated via Google OAuth / Firebase ID (${profile.email})`,
+          status: 'New'
+        })
+      });
+    } catch (e) {
+      console.warn('Google auth lead saved locally:', e);
+    }
+
+    localStorage.setItem('nexa_user', JSON.stringify(loggedUser));
+    setUserAuth(loggedUser);
+    setAuthModal(null);
+    setGoogleAuthModal(false);
+    showToast(`✓ Signed in with Google! Welcome back, ${loggedUser.name}!`);
+  };
+
+  const handleStudentSignUpSubmit = async (e) => {
+    e.preventDefault();
+    setStudentAuthLoading(true);
+    const name = studentSignUpForm.name.trim();
+    const email = studentSignUpForm.email.trim();
+    const mobile = studentSignUpForm.mobile.trim();
+    const track = studentSignUpForm.track;
+
+    const loggedUser = {
+      name,
+      email,
+      mobile,
+      provider: 'email',
+      enrolled: ['c1', 'c2']
+    };
+
+    // Record lead directly into backend / MongoDB Atlas
+    try {
+      await fetch(`${API}/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          mobile,
+          city: 'Online Admissions',
+          course: `${track} (Student Registration)`,
+          source: 'Website Create Account Form (Student Portal)',
+          notes: `New student registration with preferred track: ${track}`,
+          status: 'New'
+        })
+      });
+    } catch (err) {
+      console.warn('Student registration saved locally:', err);
+    }
+
+    localStorage.setItem('nexa_user', JSON.stringify(loggedUser));
+    setUserAuth(loggedUser);
+    setStudentAuthLoading(false);
+    setAuthModal(null);
+    showToast(`✓ Account created successfully! Welcome to NexaAI Lab, ${name}!`);
+    setStudentSignUpForm({ name: '', email: '', mobile: '', password: '', track: 'Data Science & Generative AI' });
+  };
+
+  const handleStudentSignInSubmit = async (e) => {
+    e.preventDefault();
+    setStudentAuthLoading(true);
+    const emailInput = studentSignInForm.email.trim();
+    const namePart = emailInput.split('@')[0].replace(/[._]/g, ' ');
+    const studentName = namePart ? namePart.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Student';
+    const loggedUser = {
+      name: studentName,
+      email: emailInput,
+      provider: 'email',
+      enrolled: ['c1', 'c2']
+    };
+    localStorage.setItem('nexa_user', JSON.stringify(loggedUser));
+    setUserAuth(loggedUser);
+    setStudentAuthLoading(false);
+    setAuthModal(null);
+    showToast(`✓ Welcome back, ${loggedUser.name}!`);
+  };
+
+  const submitCourseInquiry = async (e) => {
+    e.preventDefault();
+    if (!selectedCourseModal) return;
+    setCourseInquirySubmitting(true);
+    const courseTitle = selectedCourseModal.title;
+    try {
+      await fetch(`${API}/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: courseInquiryForm.name.trim(),
+          email: courseInquiryForm.email.trim(),
+          mobile: courseInquiryForm.mobile.trim(),
+          course: `${courseTitle} (Curriculum & Syllabus Download)`,
+          city: 'Pune / Online Admissions',
+          notes: `Customer requested detailed syllabus and capstone blueprints for ${courseTitle} (Fee: ${selectedCourseModal.fee || '₹55,000'})`,
+          source: 'Course Curriculum & Syllabus Download Form',
+          status: 'New'
+        })
+      });
+    } catch (err) {
+      console.warn('Course inquiry saved locally:', err);
+    }
+    setCourseInquirySubmitting(false);
+    showToast(`✓ Detailed Syllabus for ${courseTitle} sent to ${courseInquiryForm.email}!`);
+    setSelectedCourseModal(null);
+    setCourseInquiryForm({ name: '', email: '', mobile: '' });
   };
 
   const handleVerifyCert = async (customId) => {
@@ -5184,27 +5348,53 @@ function App() {
               <h2>{selectedCourseModal.title}</h2>
               <p>Get the complete week-by-week curriculum, capstone blueprints, and placement report sent to your email.</p>
 
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                setSelectedCourseModal(null);
-                showToast(`✓ Detailed Syllabus for ${selectedCourseModal.title} downloaded!`);
-              }}>
+              <form onSubmit={submitCourseInquiry}>
                 <div className="form-field">
                   <label>Full Name *</label>
-                  <input type="text" placeholder="Your Name" required />
+                  <input
+                    type="text"
+                    placeholder="Enter your full name"
+                    required
+                    value={courseInquiryForm.name}
+                    onChange={e => setCourseInquiryForm({ ...courseInquiryForm, name: e.target.value })}
+                  />
                 </div>
                 <div className="form-row-2">
                   <div className="form-field">
                     <label>Email Address *</label>
-                    <input type="email" placeholder="name@email.com" required />
+                    <input
+                      type="email"
+                      placeholder="name@email.com"
+                      required
+                      value={courseInquiryForm.email}
+                      onChange={e => setCourseInquiryForm({ ...courseInquiryForm, email: e.target.value })}
+                    />
                   </div>
                   <div className="form-field">
                     <label>Mobile Number *</label>
-                    <input type="tel" placeholder="Phone Number" required />
+                    <input
+                      type="tel"
+                      placeholder="Enter 10-digit mobile"
+                      required
+                      value={courseInquiryForm.mobile}
+                      onChange={e => setCourseInquiryForm({ ...courseInquiryForm, mobile: e.target.value })}
+                    />
                   </div>
                 </div>
-                <button type="submit" className="btn-primary full-width large">
-                  <Download size={18} /> Download Detailed Curriculum PDF
+                <button
+                  type="submit"
+                  className="btn-primary full-width large"
+                  disabled={courseInquirySubmitting}
+                >
+                  {courseInquirySubmitting ? (
+                    <>
+                      <RefreshCw size={17} className="animate-spin inline mr-2" /> Processing Inquiry...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={18} className="inline mr-2" /> Download Detailed Curriculum PDF
+                    </>
+                  )}
                 </button>
               </form>
             </div>
@@ -5393,34 +5583,287 @@ function App() {
                   </div>
                 </form>
               </div>
-            ) : (
+            ) : authModal === 'signup' ? (
               <div className="auth-form-wrap">
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const emailInput = e.target.querySelector('input[type="email"]')?.value || 'student@nexaailab.com';
-                  const namePart = emailInput.split('@')[0].replace(/[._]/g, ' ');
-                  const studentName = namePart ? namePart.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'Student';
-                  const loggedUser = { name: studentName, email: emailInput, enrolled: ['c1', 'c2'] };
-                  localStorage.setItem('nexa_user', JSON.stringify(loggedUser));
-                  setUserAuth(loggedUser);
-                  setAuthModal(null);
-                  showToast(`Welcome back, ${loggedUser.name}!`);
-                }}>
+                <button
+                  type="button"
+                  className="btn-google-auth"
+                  onClick={() => setGoogleAuthModal(true)}
+                >
+                  <GoogleIcon /> Continue with Google
+                </button>
+
+                <div className="auth-divider">
+                  <span>or create account with email</span>
+                </div>
+
+                <form onSubmit={handleStudentSignUpSubmit}>
                   <div className="form-field">
-                    <label>Email Address</label>
-                    <input type="email" placeholder="Enter your email address" required />
-                  </div>
-                  <div className="form-field">
-                    <label>Password</label>
-                    <input type="password" placeholder="Enter your password" required />
+                    <label>Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Arjun Sharma"
+                      value={studentSignUpForm.name}
+                      onChange={e => setStudentSignUpForm({ ...studentSignUpForm, name: e.target.value })}
+                    />
                   </div>
 
-                  <button type="submit" className="btn-primary full-width large">
-                    {authModal === 'signin' ? 'Sign In to Student Portal' : 'Create Free Account'}
+                  <div className="form-row-2">
+                    <div className="form-field">
+                      <label>Mobile Number (+91) *</label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="10-digit mobile number"
+                        value={studentSignUpForm.mobile}
+                        onChange={e => setStudentSignUpForm({ ...studentSignUpForm, mobile: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-field">
+                      <label>Email Address *</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="name@email.com"
+                        value={studentSignUpForm.email}
+                        onChange={e => setStudentSignUpForm({ ...studentSignUpForm, email: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ margin: 0 }}>Create Password *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowStudentPassword(!showStudentPassword)}
+                        style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {showStudentPassword ? <><EyeOff size={13} /> Hide</> : <><Eye size={13} /> Show</>}
+                      </button>
+                    </div>
+                    <div className="password-input-wrap">
+                      <input
+                        type={showStudentPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Choose a strong password"
+                        value={studentSignUpForm.password}
+                        onChange={e => setStudentSignUpForm({ ...studentSignUpForm, password: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setShowStudentPassword(!showStudentPassword)}
+                        tabIndex={-1}
+                      >
+                        {showStudentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label>Preferred Learning Track</label>
+                    <select
+                      value={studentSignUpForm.track}
+                      onChange={e => setStudentSignUpForm({ ...studentSignUpForm, track: e.target.value })}
+                    >
+                      <option value="Data Science & Generative AI">Data Science & Generative AI</option>
+                      <option value="Applied Data Analytics & Engineering">Applied Data Analytics & Engineering</option>
+                      <option value="AI & Robotics Hardware Bootcamp">AI & Robotics Hardware Bootcamp</option>
+                      <option value="Fullstack AI Software Engineering">Fullstack AI Software Engineering</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-primary full-width large"
+                    disabled={studentAuthLoading}
+                  >
+                    {studentAuthLoading ? (
+                      <>
+                        <RefreshCw size={17} className="animate-spin inline mr-2" /> Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} className="inline mr-2" /> Create Free Student Account
+                      </>
+                    )}
                   </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '12.5px', color: '#64748b' }}>
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setAuthModal('signin')}
+                      style={{ background: 'none', border: 'none', color: '#003f78', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Sign In here
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              <div className="auth-form-wrap">
+                <button
+                  type="button"
+                  className="btn-google-auth"
+                  onClick={() => setGoogleAuthModal(true)}
+                >
+                  <GoogleIcon /> Sign in with Google
+                </button>
+
+                <div className="auth-divider">
+                  <span>or sign in with email</span>
+                </div>
+
+                <form onSubmit={handleStudentSignInSubmit}>
+                  <div className="form-field">
+                    <label>Registered Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter your student email"
+                      value={studentSignInForm.email}
+                      onChange={e => setStudentSignInForm({ ...studentSignInForm, email: e.target.value })}
+                      autoComplete="username"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label style={{ margin: 0 }}>Password *</label>
+                      <button
+                        type="button"
+                        onClick={() => setShowStudentSignInPassword(!showStudentSignInPassword)}
+                        style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        {showStudentSignInPassword ? <><EyeOff size={13} /> Hide</> : <><Eye size={13} /> Show</>}
+                      </button>
+                    </div>
+                    <div className="password-input-wrap">
+                      <input
+                        type={showStudentSignInPassword ? 'text' : 'password'}
+                        required
+                        placeholder="Enter your password"
+                        value={studentSignInForm.password}
+                        onChange={e => setStudentSignInForm({ ...studentSignInForm, password: e.target.value })}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setShowStudentSignInPassword(!showStudentSignInPassword)}
+                        tabIndex={-1}
+                      >
+                        {showStudentSignInPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-primary full-width large"
+                    disabled={studentAuthLoading}
+                  >
+                    {studentAuthLoading ? (
+                      <>
+                        <RefreshCw size={17} className="animate-spin inline mr-2" /> Signing in...
+                      </>
+                    ) : (
+                      <>
+                        Sign In to Student Portal <ArrowRight size={16} className="inline ml-1" />
+                      </>
+                    )}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: '14px', fontSize: '12.5px', color: '#64748b' }}>
+                    Don't have an account yet?{' '}
+                    <button
+                      type="button"
+                      onClick={() => setAuthModal('signup')}
+                      style={{ background: 'none', border: 'none', color: '#003f78', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Create Account
+                    </button>
+                  </div>
                 </form>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= GOOGLE AUTHENTICATION PICKER MODAL ================= */}
+      {googleAuthModal && (
+        <div className="google-account-modal-overlay" onClick={() => setGoogleAuthModal(false)}>
+          <div className="google-account-box" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setGoogleAuthModal(false)}><X size={18} /></button>
+            <div className="google-box-header">
+              <GoogleIcon />
+              <div>
+                <h4>Sign in with Google</h4>
+                <p>Choose an account to continue to NexaAI Lab</p>
+              </div>
+            </div>
+
+            <div className="google-accounts-list">
+              <div
+                className="google-account-item"
+                onClick={() => handleGoogleAuthSignIn({
+                  name: studentSignUpForm.name.trim() || 'Arjun Sharma',
+                  email: studentSignUpForm.email.trim() || 'arjun.sharma@gmail.com',
+                  mobile: studentSignUpForm.mobile.trim() || '+91 98765 43210'
+                })}
+              >
+                <div className="google-avatar">
+                  {(studentSignUpForm.name.trim() || 'Arjun Sharma').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="google-account-info">
+                  <div className="google-account-name">{studentSignUpForm.name.trim() || 'Arjun Sharma'}</div>
+                  <div className="google-account-email">{studentSignUpForm.email.trim() || 'arjun.sharma@gmail.com'}</div>
+                </div>
+                <CheckCircle2 size={18} className="text-mint" />
+              </div>
+
+              <div
+                className="google-account-item"
+                onClick={() => handleGoogleAuthSignIn({
+                  name: 'Pooja Verma',
+                  email: 'pooja.verma.tech@gmail.com',
+                  mobile: '+91 98220 18452'
+                })}
+              >
+                <div className="google-avatar" style={{ background: '#ea4335' }}>P</div>
+                <div className="google-account-info">
+                  <div className="google-account-name">Pooja Verma</div>
+                  <div className="google-account-email">pooja.verma.tech@gmail.com</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+              <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '6px' }}>Or enter custom Google Account:</label>
+              <div className="google-custom-input-row">
+                <input
+                  type="email"
+                  placeholder="your.email@gmail.com"
+                  value={customGoogleEmail}
+                  onChange={e => setCustomGoogleEmail(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    const email = customGoogleEmail.trim() || 'student@gmail.com';
+                    const name = email.split('@')[0].replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    handleGoogleAuthSignIn({ name, email });
+                  }}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

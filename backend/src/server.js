@@ -24,6 +24,17 @@ app.use(morgan('dev'));
 app.use('/api', publicRoutes);
 app.use('/api/admin', adminRoutes);
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+app.all('/api/webhook', (req, res) => {
+  res.json({ ok: true, received: true, timestamp: new Date().toISOString() });
+});
+
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ message: 'Internal Server Error', error: err.message });
