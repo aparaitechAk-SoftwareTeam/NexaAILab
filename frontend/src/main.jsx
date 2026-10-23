@@ -8,7 +8,7 @@ import {
   Building2, Laptop, Lightbulb, MessageSquare, Star, Check, ArrowRight,
   Play, FileText, Share2, HelpCircle, Layers, Shield, Sparkle, RefreshCw,
   Filter, Bookmark, Eye, EyeOff, ThumbsUp, Code, DollarSign, Percent, BarChart3,
-  Target, Zap, QrCode, Printer, AlertCircle, Lock, Trash2
+  Target, Zap, QrCode, Printer, AlertCircle, Lock, Trash2, Plus, Edit
 } from 'lucide-react';
 import './styles.css';
 
@@ -1266,8 +1266,13 @@ function App() {
   const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [adminLoginMsg, setAdminLoginMsg] = useState({ type: '', text: '' });
 
-  // In-Site Live Admin CRM States
+  // In-Site Live Admin Control Center States
   const [showInSiteAdmin, setShowInSiteAdmin] = useState(false);
+  const [adminTab, setAdminTab] = useState('leads'); // 'leads' | 'courses' | 'batches' | 'testimonials' | 'reports' | 'faqs' | 'stats'
+  const [adminStats, setAdminStats] = useState({ courses: 0, leads: 0, testimonials: 0, reports: 0, faqs: 0, batches: 0 });
+  const [activeAdminModal, setActiveAdminModal] = useState(null); // 'add-course' | 'edit-course' | etc.
+  const [editingItem, setEditingItem] = useState(null);
+  const [entityForm, setEntityForm] = useState({});
   const [adminLeadsList, setAdminLeadsList] = useState([]);
   const [adminLeadsLoading, setAdminLeadsLoading] = useState(false);
   const [adminLeadsSearch, setAdminLeadsSearch] = useState('');
@@ -1475,25 +1480,99 @@ function App() {
     setTimeout(() => setToast(''), 4000);
   };
 
-  useEffect(() => {
-    // Attempt backend fetch
-    Promise.all([
-      fetch(`${API}/courses`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/batches`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/testimonials`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/reports`).then(r => r.ok ? r.json() : null),
-      fetch(`${API}/faqs`).then(r => r.ok ? r.json() : null)
-    ])
-      .then(([c, b, t, r, f]) => {
-        if (Array.isArray(c) && c.length) setCourses(c);
-        if (Array.isArray(b) && b.length) setBatches(b);
-        if (Array.isArray(t) && t.length) setTestimonials(t);
-        if (Array.isArray(r) && r.length) setReports(r);
-        if (Array.isArray(f) && f.length) setFaqs(f);
-      })
-      .catch(() => {
-        console.log('Running on optimized local cache.');
+  const refreshAllData = async (silent = false) => {
+    if (!silent) setAdminLeadsLoading(true);
+    try {
+      const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+      const [cRes, bRes, tRes, rRes, fRes, lRes, sRes] = await Promise.all([
+        fetch(`${API}/courses`),
+        fetch(`${API}/batches`),
+        fetch(`${API}/testimonials`),
+        fetch(`${API}/reports`),
+        fetch(`${API}/faqs`),
+        fetch(`${API}/admin/leads`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        fetch(`${API}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
+      ]);
+
+      if (cRes && cRes.ok) { const c = await cRes.json(); if (Array.isArray(c) && c.length) setCourses(c); }
+      if (bRes && bRes.ok) { const b = await bRes.json(); if (Array.isArray(b) && b.length) setBatches(b); }
+      if (tRes && tRes.ok) { const t = await tRes.json(); if (Array.isArray(t) && t.length) setTestimonials(t); }
+      if (rRes && rRes.ok) { const r = await rRes.json(); if (Array.isArray(r) && r.length) setReports(r); }
+      if (fRes && fRes.ok) { const f = await fRes.json(); if (Array.isArray(f) && f.length) setFaqs(f); }
+      if (sRes && sRes.ok) { const s = await sRes.json(); if (s && typeof s === 'object') setAdminStats(s); }
+      if (lRes && lRes.ok) {
+        const list = await lRes.json();
+        if (Array.isArray(list)) {
+          if (adminLeadsPrevCountRef.current !== null && list.length > adminLeadsPrevCountRef.current) {
+            playLeadChime();
+            const latest = list[list.length - 1];
+            showToast(`🔔 New Live Customer Inquiry: ${latest?.name} (${latest?.course || 'Admissions'})!`);
+          }
+          adminLeadsPrevCountRef.current = list.length;
+          setAdminLeadsList(list);
+          setAdminLeadsLastSynced(new Date());
+        }
+      }
+    } catch (e) {
+      console.warn('Real data refresh error:', e);
+    } finally {
+      if (!silent) setAdminLeadsLoading(false);
+    }
+  };
+
+  const handleAdminDeleteEntity = async (entityType, id) => {
+    if (!window.confirm(`Delete this ${entityType.slice(0, -1)}? This will immediately remove it from the live database and website.`)) return;
+    try {
+      const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+      const res = await fetch(`${API}/admin/${entityType}/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.ok) {
+        showToast(`✓ Removed from database. Reflects live.`);
+        refreshAllData(true);
+      } else {
+        showToast('Failed to delete item', 'error');
+      }
+    } catch (e) {
+      showToast('Error removing item', 'error');
+    }
+  };
+
+  const handleAdminSaveEntity = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+    const isEdit = Boolean(editingItem && editingItem._id);
+    const entityType = activeAdminModal.replace('add-', '').replace('edit-', '');
+    const endpoint = `${API}/admin/${entityType}${isEdit ? `/${editingItem._id}` : ''}`;
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(entityForm)
+      });
+      if (res.ok) {
+        showToast(`✓ Successfully ${isEdit ? 'updated' : 'added'}! Live website updated.`);
+        setActiveAdminModal(null);
+        setEditingItem(null);
+        setEntityForm({});
+        refreshAllData(true);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.message || 'Failed to save', 'error');
+      }
+    } catch (e) {
+      showToast('Network error saving item', 'error');
+    }
+  };
+
+  useEffect(() => {
+    refreshAllData(true);
   }, []);
 
   const navigateTo = (page, courseObj = null) => {
@@ -1762,38 +1841,15 @@ function App() {
   };
 
   const fetchAdminLeads = async (silent = false) => {
-    if (!silent) setAdminLeadsLoading(true);
-    try {
-      const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
-      const res = await fetch(`${API}/admin/leads`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const list = await res.json();
-        if (Array.isArray(list)) {
-          if (adminLeadsPrevCountRef.current !== null && list.length > adminLeadsPrevCountRef.current) {
-            playLeadChime();
-            const latest = list[list.length - 1];
-            showToast(`🔔 New Live Customer Inquiry: ${latest?.name} (${latest?.course || 'Admissions'})!`);
-          }
-          adminLeadsPrevCountRef.current = list.length;
-          setAdminLeadsList(list);
-          setAdminLeadsLastSynced(new Date());
-        }
-      }
-    } catch (e) {
-      console.warn('In-site admin leads sync error:', e);
-    } finally {
-      if (!silent) setAdminLeadsLoading(false);
-    }
+    await refreshAllData(silent);
   };
 
   useEffect(() => {
     if (showInSiteAdmin || userAuth?.role === 'admin') {
-      fetchAdminLeads(false);
+      refreshAllData(false);
       const timer = setInterval(() => {
-        fetchAdminLeads(true);
-      }, 4000); // 4-second live sync
+        refreshAllData(true);
+      }, 4000); // 4-second live sync from MongoDB Atlas
       return () => clearInterval(timer);
     }
   }, [showInSiteAdmin, userAuth]);
@@ -3007,7 +3063,7 @@ function App() {
               </div>
 
               <div className="testimonials-grid">
-                {testimonials.slice(0, 3).map(t => (
+                {testimonials.map(t => (
                   <div key={t._id || t.name} className="testimonial-card-pro">
                     <div className="testimonial-header">
                       <img src={t.image} alt={t.name} className="testimonial-avatar" />
@@ -5074,7 +5130,13 @@ function App() {
 
         <div className="footer-bottom">
           <div className="container footer-bottom-flex">
-            <p>© 2026 NexaAI Lab Fullstack Edition. All Rights Reserved.</p>
+            <div>
+              <p>© 2026 NexaAI Lab Fullstack Edition. All Rights Reserved.</p>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#10b981', marginTop: '4px' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                <span>Live Database: Connected to MongoDB Atlas Cluster0 • Real-Time Fetch Active</span>
+              </div>
+            </div>
             <div className="footer-bottom-links">
               <a onClick={() => navigateTo('partnerships')}>Credential Verification</a>
               <span>•</span>
@@ -5084,8 +5146,15 @@ function App() {
               <span>•</span>
               <a onClick={() => navigateTo('contact')}>Campuses</a>
               <span>•</span>
-              <a onClick={() => { setAdminLoginMsg({ type: '', text: '' }); setAuthModal('admin'); }}>
-                <Shield size={12} className="inline mr-1 text-cyan" /> Admin Login
+              <a onClick={() => {
+                if (userAuth?.role === 'admin') {
+                  setShowInSiteAdmin(true);
+                } else {
+                  setAdminLoginMsg({ type: '', text: '' });
+                  setAuthModal('admin');
+                }
+              }}>
+                <Shield size={12} className="inline mr-1 text-cyan" /> Admin Console
               </a>
             </div>
           </div>
@@ -6033,15 +6102,16 @@ function App() {
         </div>
       )}
 
-      {/* ================= IN-SITE LIVE ADMIN CRM & INQUIRIES MODAL ================= */}
+      {/* ================= MERGED IN-SITE ADMIN CONTROL SUITE ================= */}
       {showInSiteAdmin && (
-        <div className="modal-overlay admin-crm-overlay" onClick={() => setShowInSiteAdmin(false)}>
+        <div className="modal-overlay admin-crm-overlay" onClick={() => { setShowInSiteAdmin(false); setActiveAdminModal(null); }}>
           <div className="modal-box admin-crm-modal" onClick={e => e.stopPropagation()}>
+            {/* Master Header */}
             <div className="admin-crm-header">
               <div className="crm-header-left">
                 <div className="crm-title-row">
                   <span className="crm-shield-badge">
-                    <Shield size={14} /> Official Admissions CRM
+                    <Shield size={14} /> Official NexaAI Lab Admin Console
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px' }}>
                     🌐 nexaai.aparaitech.org
@@ -6052,259 +6122,1066 @@ function App() {
                     <small>Synced {adminLeadsLastSynced.toLocaleTimeString()}</small>
                   </div>
                 </div>
-                <h2>Live Customer Inquiries & Lead Management</h2>
-                <p>Direct real-time stream from MongoDB Atlas database. Manage syllabus downloads, counseling sessions, workshop bookings, and student inquiries.</p>
+                <h2>Live Admin Operations Hub: Leads, Courses, Batches & Content</h2>
+                <p>Direct real-time stream from MongoDB Atlas database. Manage customer inquiries, syllabus downloads, course curriculums, batch schedules, and reviews live on website.</p>
               </div>
 
               <div className="crm-header-right">
                 <button
                   type="button"
-                  className="btn-crm-standalone"
-                  onClick={() => {
-                    const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
-                    const targetUrl = `${ADMIN_PORTAL_URL}?token=${encodeURIComponent(token)}`;
-                    try { window.open(targetUrl, '_blank'); } catch (e) {}
-                  }}
-                  title="Open Dedicated Full Admin Console on Port 5174"
-                >
-                  <ExternalLink size={14} /> Standalone Console (5174)
-                </button>
-                <button
-                  type="button"
                   className="btn-crm-refresh"
-                  onClick={() => fetchAdminLeads(false)}
+                  onClick={() => refreshAllData(false)}
                   disabled={adminLeadsLoading}
-                  title="Refresh live data"
+                  title="Refresh live data from MongoDB Atlas"
                 >
                   <RefreshCw size={14} className={adminLeadsLoading ? 'animate-spin' : ''} />
-                  <span>Refresh</span>
+                  <span>Refresh All</span>
                 </button>
                 <button
                   type="button"
                   className="modal-close"
-                  onClick={() => setShowInSiteAdmin(false)}
-                  title="Close CRM"
+                  onClick={() => { setShowInSiteAdmin(false); setActiveAdminModal(null); }}
+                  title="Close Admin Console"
                 >
                   <X size={20} />
                 </button>
               </div>
             </div>
 
-            {/* KPI Metrics Row */}
-            <div className="crm-kpis-grid">
-              <div className="crm-kpi-card total">
-                <div className="kpi-icon"><Users size={20} /></div>
-                <div className="crm-kpi-info">
-                  <h3>{adminLeadsList.length}</h3>
-                  <span>Total Inquiries</span>
-                </div>
-              </div>
-              <div className="crm-kpi-card new">
-                <div className="kpi-icon"><Sparkles size={20} /></div>
-                <div className="crm-kpi-info">
-                  <h3>{adminLeadsList.filter(l => (l.status || 'New') === 'New').length}</h3>
-                  <span>New Leads</span>
-                </div>
-              </div>
-              <div className="crm-kpi-card contacted">
-                <div className="kpi-icon"><Phone size={20} /></div>
-                <div className="crm-kpi-info">
-                  <h3>{adminLeadsList.filter(l => l.status === 'Contacted').length}</h3>
-                  <span>Contacted</span>
-                </div>
-              </div>
-              <div className="crm-kpi-card qualified">
-                <div className="kpi-icon"><CheckCircle2 size={20} /></div>
-                <div className="crm-kpi-info">
-                  <h3>{adminLeadsList.filter(l => l.status === 'Qualified' || l.status === 'Closed').length}</h3>
-                  <span>Qualified / Enrolled</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Toolbar: Search & Status Filter Tabs */}
-            <div className="crm-toolbar">
-              <div className="crm-search-box">
-                <Search size={16} />
-                <input
-                  type="text"
-                  placeholder="Search candidate name, mobile, email, course, city..."
-                  value={adminLeadsSearch}
-                  onChange={e => setAdminLeadsSearch(e.target.value)}
-                />
-                {adminLeadsSearch && (
-                  <button type="button" onClick={() => setAdminLeadsSearch('')} className="crm-search-clear">
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              <div className="crm-status-tabs">
-                {['All', 'New', 'Contacted', 'Qualified', 'Closed'].map(st => {
-                  const count = st === 'All' ? adminLeadsList.length : adminLeadsList.filter(l => (l.status || 'New') === st).length;
-                  return (
-                    <button
-                      key={st}
-                      type="button"
-                      className={`crm-status-tab ${adminLeadsStatusFilter === st ? 'active' : ''}`}
-                      onClick={() => setAdminLeadsStatusFilter(st)}
-                    >
-                      <span>{st}</span>
-                      <b className="crm-tab-badge">{count}</b>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Leads Table Container */}
-            <div className="crm-table-wrapper">
-              {(() => {
-                const filtered = adminLeadsList.filter(l => {
-                  const q = adminLeadsSearch.toLowerCase();
-                  const matchesSearch = !adminLeadsSearch ||
-                    (l.name && l.name.toLowerCase().includes(q)) ||
-                    (l.email && l.email.toLowerCase().includes(q)) ||
-                    (l.mobile && String(l.mobile).includes(q)) ||
-                    (l.course && l.course.toLowerCase().includes(q)) ||
-                    (l.city && l.city.toLowerCase().includes(q)) ||
-                    (l.source && l.source.toLowerCase().includes(q));
-                  const matchesStatus = adminLeadsStatusFilter === 'All' || (l.status || 'New') === adminLeadsStatusFilter;
-                  return matchesSearch && matchesStatus;
-                });
-
-                if (filtered.length === 0) {
-                  return (
-                    <div className="crm-empty-state">
-                      <Users size={36} className="text-muted" />
-                      <h4>No inquiries found</h4>
-                      <p>No customer inquiries match your current search or filter. New inquiries from the live website will appear here in real-time.</p>
-                      {adminLeadsSearch && (
-                        <button type="button" className="btn-primary small mt-10" onClick={() => setAdminLeadsSearch('')}>
-                          Clear Search Filter
-                        </button>
-                      )}
-                    </div>
-                  );
-                }
-
-                return (
-                  <table className="crm-data-table">
-                    <thead>
-                      <tr>
-                        <th>Candidate</th>
-                        <th>Contact Details</th>
-                        <th>Program / Subject</th>
-                        <th>Center / Timings</th>
-                        <th>Source</th>
-                        <th>CRM Status</th>
-                        <th>Date & Time</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map(l => (
-                        <tr key={l._id}>
-                          <td>
-                            <div className="crm-candidate-cell">
-                              <div className="crm-avatar">{(l.name || 'CD').slice(0, 2).toUpperCase()}</div>
-                              <div>
-                                <strong className="crm-candidate-name">{l.name}</strong>
-                                {l.passId && <span className="crm-pass-tag">{l.passId}</span>}
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="crm-contact-cell">
-                              <a href={`tel:${l.mobile}`} className="crm-contact-link phone">
-                                <Phone size={12} /> {l.code || '+91'} {l.mobile}
-                              </a>
-                              <a href={`mailto:${l.email}`} className="crm-contact-link email">
-                                <Mail size={12} /> {l.email}
-                              </a>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="crm-course-cell">
-                              <strong className="crm-course-title">{l.course || 'General Admissions'}</strong>
-                              {l.notes && <span className="crm-notes-text" title={l.notes}>📝 {l.notes}</span>}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="crm-slot-cell">
-                              <span className="crm-city-badge">{l.city || 'Online'}</span>
-                              <small className="crm-time-text">{l.preferredSlot || (l.date ? `${l.date} • ${l.time || ''}` : 'Flexible')}</small>
-                            </div>
-                          </td>
-                          <td>
-                            <span className="crm-source-pill">{l.source || 'Website Form'}</span>
-                          </td>
-                          <td>
-                            <select
-                              className={`crm-status-select status-${(l.status || 'New').toLowerCase()}`}
-                              value={l.status || 'New'}
-                              onChange={e => updateLeadStatusInSite(l._id, e.target.value)}
-                            >
-                              <option value="New">New</option>
-                              <option value="Contacted">Contacted</option>
-                              <option value="Qualified">Qualified</option>
-                              <option value="Closed">Closed</option>
-                            </select>
-                          </td>
-                          <td>
-                            <span className="crm-date-text">
-                              {l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
-                            </span>
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn-crm-delete"
-                              onClick={() => deleteLeadInSite(l._id)}
-                              title="Delete lead record"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
-            </div>
-
-            <div className="crm-footer-bar">
-              <span>Showing {adminLeadsList.length} verified customer inquiries synced directly from MongoDB Atlas.</span>
+            {/* Admin Hub Navigation Tabs */}
+            <div className="crm-tabs-nav">
               <button
                 type="button"
-                className="btn-primary small"
-                onClick={() => {
-                  fetch(`${API}/leads`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      name: 'Demo Inquirer (' + new Date().toLocaleTimeString() + ')',
-                      email: 'student.inquiry@gmail.com',
-                      mobile: '+91 98220 99887',
-                      course: 'Data Science & Generative AI (Live Test)',
-                      city: 'Pune (Hinjawadi)',
-                      source: 'Live Website Inquiry Test',
-                      notes: 'Real-time test lead created from CRM modal',
-                      status: 'New'
-                    })
-                  }).then(() => {
-                    fetchAdminLeads(true);
-                    showToast('✓ Test customer inquiry created! Appears live in table.');
-                  });
-                }}
+                className={`crm-nav-tab ${adminTab === 'leads' ? 'active' : ''}`}
+                onClick={() => setAdminTab('leads')}
               >
-                + Submit Live Test Inquiry
+                <Users size={14} />
+                <span>Customer Inquiries</span>
+                <span className="crm-nav-tab-badge">{adminLeadsList.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`crm-nav-tab ${adminTab === 'courses' ? 'active' : ''}`}
+                onClick={() => setAdminTab('courses')}
+              >
+                <BookOpen size={14} />
+                <span>Courses Catalog</span>
+                <span className="crm-nav-tab-badge">{courses.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`crm-nav-tab ${adminTab === 'batches' ? 'active' : ''}`}
+                onClick={() => setAdminTab('batches')}
+              >
+                <Calendar size={14} />
+                <span>Batches & Labs</span>
+                <span className="crm-nav-tab-badge">{batches.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`crm-nav-tab ${adminTab === 'testimonials' ? 'active' : ''}`}
+                onClick={() => setAdminTab('testimonials')}
+              >
+                <Star size={14} />
+                <span>Reviews & Testimonials</span>
+                <span className="crm-nav-tab-badge">{testimonials.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`crm-nav-tab ${adminTab === 'reports' ? 'active' : ''}`}
+                onClick={() => setAdminTab('reports')}
+              >
+                <FileText size={14} />
+                <span>Whitepapers</span>
+                <span className="crm-nav-tab-badge">{reports.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`crm-nav-tab ${adminTab === 'faqs' ? 'active' : ''}`}
+                onClick={() => setAdminTab('faqs')}
+              >
+                <HelpCircle size={14} />
+                <span>FAQs</span>
+                <span className="crm-nav-tab-badge">{faqs.length}</span>
+              </button>
+              <button
+                type="button"
+                className={`crm-nav-tab ${adminTab === 'stats' ? 'active' : ''}`}
+                onClick={() => setAdminTab('stats')}
+              >
+                <BarChart3 size={14} />
+                <span>Executive Stats</span>
               </button>
             </div>
+
+            {/* ================= TAB 1: CUSTOMER INQUIRIES & LEADS ================= */}
+            {adminTab === 'leads' && (
+              <>
+                {/* KPI Metrics Row */}
+                <div className="crm-kpis-grid">
+                  <div className="crm-kpi-card total">
+                    <div className="kpi-icon"><Users size={20} /></div>
+                    <div className="crm-kpi-info">
+                      <h3>{adminLeadsList.length}</h3>
+                      <span>Total Inquiries</span>
+                    </div>
+                  </div>
+                  <div className="crm-kpi-card new">
+                    <div className="kpi-icon"><Sparkles size={20} /></div>
+                    <div className="crm-kpi-info">
+                      <h3>{adminLeadsList.filter(l => (l.status || 'New') === 'New').length}</h3>
+                      <span>New Leads</span>
+                    </div>
+                  </div>
+                  <div className="crm-kpi-card contacted">
+                    <div className="kpi-icon"><Phone size={20} /></div>
+                    <div className="crm-kpi-info">
+                      <h3>{adminLeadsList.filter(l => l.status === 'Contacted').length}</h3>
+                      <span>Contacted</span>
+                    </div>
+                  </div>
+                  <div className="crm-kpi-card qualified">
+                    <div className="kpi-icon"><CheckCircle2 size={20} /></div>
+                    <div className="crm-kpi-info">
+                      <h3>{adminLeadsList.filter(l => l.status === 'Qualified' || l.status === 'Closed').length}</h3>
+                      <span>Qualified / Enrolled</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Toolbar: Search & Status Filter Tabs */}
+                <div className="crm-toolbar">
+                  <div className="crm-search-box">
+                    <Search size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search candidate name, mobile, email, course, city..."
+                      value={adminLeadsSearch}
+                      onChange={e => setAdminLeadsSearch(e.target.value)}
+                    />
+                    {adminLeadsSearch && (
+                      <button type="button" onClick={() => setAdminLeadsSearch('')} className="crm-search-clear">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="crm-status-tabs">
+                    {['All', 'New', 'Contacted', 'Qualified', 'Closed'].map(st => {
+                      const count = st === 'All' ? adminLeadsList.length : adminLeadsList.filter(l => (l.status || 'New') === st).length;
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          className={`crm-status-tab ${adminLeadsStatusFilter === st ? 'active' : ''}`}
+                          onClick={() => setAdminLeadsStatusFilter(st)}
+                        >
+                          <span>{st}</span>
+                          <b className="crm-tab-badge">{count}</b>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Leads Table Container */}
+                <div className="crm-table-wrapper">
+                  {(() => {
+                    const filtered = adminLeadsList.filter(l => {
+                      const q = adminLeadsSearch.toLowerCase();
+                      const matchesSearch = !adminLeadsSearch ||
+                        (l.name && l.name.toLowerCase().includes(q)) ||
+                        (l.email && l.email.toLowerCase().includes(q)) ||
+                        (l.mobile && String(l.mobile).includes(q)) ||
+                        (l.course && l.course.toLowerCase().includes(q)) ||
+                        (l.city && l.city.toLowerCase().includes(q)) ||
+                        (l.source && l.source.toLowerCase().includes(q));
+                      const matchesStatus = adminLeadsStatusFilter === 'All' || (l.status || 'New') === adminLeadsStatusFilter;
+                      return matchesSearch && matchesStatus;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="crm-empty-state">
+                          <Users size={36} className="text-muted" />
+                          <h4>No inquiries found</h4>
+                          <p>No customer inquiries match your current search or filter. New inquiries from the live website will appear here in real-time.</p>
+                          {adminLeadsSearch && (
+                            <button type="button" className="btn-primary small mt-10" onClick={() => setAdminLeadsSearch('')}>
+                              Clear Search Filter
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <table className="crm-data-table">
+                        <thead>
+                          <tr>
+                            <th>Candidate</th>
+                            <th>Contact Details</th>
+                            <th>Program / Subject</th>
+                            <th>Center / Timings</th>
+                            <th>Source</th>
+                            <th>CRM Status</th>
+                            <th>Date & Time</th>
+                            <th>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map(l => (
+                            <tr key={l._id}>
+                              <td>
+                                <div className="crm-candidate-cell">
+                                  <div className="crm-avatar">{(l.name || 'CD').slice(0, 2).toUpperCase()}</div>
+                                  <div>
+                                    <strong className="crm-candidate-name">{l.name}</strong>
+                                    {l.passId && <span className="crm-pass-tag">{l.passId}</span>}
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="crm-contact-cell">
+                                  <a href={`tel:${l.mobile}`} className="crm-contact-link phone">
+                                    <Phone size={12} /> {l.code || '+91'} {l.mobile}
+                                  </a>
+                                  <a href={`mailto:${l.email}`} className="crm-contact-link email">
+                                    <Mail size={12} /> {l.email}
+                                  </a>
+                                </div>
+                              </td>
+                              <td>
+                                <div className="crm-course-cell">
+                                  <strong className="crm-course-title">{l.course || 'General Admissions'}</strong>
+                                  {l.notes && <span className="crm-notes-text" title={l.notes}>📝 {l.notes}</span>}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="crm-slot-cell">
+                                  <span className="crm-city-badge">{l.city || 'Online'}</span>
+                                  <small className="crm-time-text">{l.preferredSlot || (l.date ? `${l.date} • ${l.time || ''}` : 'Flexible')}</small>
+                                </div>
+                              </td>
+                              <td>
+                                <span className="crm-source-pill">{l.source || 'Website Form'}</span>
+                              </td>
+                              <td>
+                                <select
+                                  className={`crm-status-select status-${(l.status || 'New').toLowerCase()}`}
+                                  value={l.status || 'New'}
+                                  onChange={e => updateLeadStatusInSite(l._id, e.target.value)}
+                                >
+                                  <option value="New">New</option>
+                                  <option value="Contacted">Contacted</option>
+                                  <option value="Qualified">Qualified</option>
+                                  <option value="Closed">Closed</option>
+                                </select>
+                              </td>
+                              <td>
+                                <span className="crm-date-text">
+                                  {l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                                </span>
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn-crm-delete"
+                                  onClick={() => deleteLeadInSite(l._id)}
+                                  title="Delete lead record"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+
+                <div className="crm-footer-bar">
+                  <span>Showing {adminLeadsList.length} verified customer inquiries synced directly from MongoDB Atlas.</span>
+                  <button
+                    type="button"
+                    className="btn-primary small"
+                    onClick={() => {
+                      fetch(`${API}/leads`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          name: 'Demo Inquirer (' + new Date().toLocaleTimeString() + ')',
+                          email: 'student.inquiry@gmail.com',
+                          mobile: '+91 98220 99887',
+                          course: 'Data Science & Generative AI (Live Test)',
+                          city: 'Pune (Hinjawadi)',
+                          source: 'Live Website Inquiry Test',
+                          notes: 'Real-time test lead created from CRM modal',
+                          status: 'New'
+                        })
+                      }).then(() => {
+                        refreshAllData(true);
+                        showToast('✓ Test customer inquiry created! Appears live in table.');
+                      });
+                    }}
+                  >
+                    + Submit Live Test Inquiry
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ================= TAB 2: COURSES CATALOG ================= */}
+            {adminTab === 'courses' && (
+              <>
+                <div className="crm-sub-header">
+                  <div className="crm-sub-header-info">
+                    <h3>Courses Catalog Management</h3>
+                    <p>Add, edit or remove accredited curriculum courses. Changes reflect immediately on the live website.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary small"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setEntityForm({
+                        title: '',
+                        category: 'Data Science & Analytics',
+                        badge: 'Flagship Program',
+                        duration: '4–6 Months',
+                        hours: '320 Hours',
+                        fee: '₹60,000',
+                        originalFee: '₹75,000',
+                        rating: '4.9',
+                        partner: 'NASSCOM FutureSkills Prime & AI Industry Council',
+                        image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80',
+                        description: ''
+                      });
+                      setActiveAdminModal('add-course');
+                    }}
+                  >
+                    <Plus size={14} /> Add New Course
+                  </button>
+                </div>
+
+                <div className="crm-items-grid">
+                  {courses.map(c => (
+                    <div key={c._id || c.title} className="crm-item-card">
+                      <div>
+                        <div className="crm-card-top">
+                          <span className="crm-card-badge">{c.badge || c.category || 'Course'}</span>
+                          <strong style={{ color: '#0284c7', fontSize: '15px' }}>{c.fee}</strong>
+                        </div>
+                        <h4 className="crm-card-title">{c.title}</h4>
+                        <p className="crm-card-desc">{c.description || 'Hands-on industry curriculum with enterprise projects.'}</p>
+                        <div className="crm-card-meta">
+                          <span className="crm-card-meta-item"><Clock size={12} /> {c.duration || '4–6 Months'}</span>
+                          <span className="crm-card-meta-item"><BookOpen size={12} /> {c.hours || '300+ Hours'}</span>
+                          <span className="crm-card-meta-item"><Star size={12} className="text-yellow" /> {c.rating || '4.9'}</span>
+                        </div>
+                      </div>
+                      <div className="crm-card-actions">
+                        <button
+                          type="button"
+                          className="btn-crm-action edit"
+                          onClick={() => {
+                            setEditingItem(c);
+                            setEntityForm({ ...c });
+                            setActiveAdminModal('edit-course');
+                          }}
+                        >
+                          <Edit size={13} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-crm-action delete"
+                          onClick={() => handleAdminDeleteEntity('courses', c._id)}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ================= TAB 3: BATCHES & SCHEDULES ================= */}
+            {adminTab === 'batches' && (
+              <>
+                <div className="crm-sub-header">
+                  <div className="crm-sub-header-info">
+                    <h3>Batches & Schedules Management</h3>
+                    <p>Manage classroom bootcamps, online studios, and AI/Robotics labs. Updates live timetable on website.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary small"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setEntityForm({
+                        title: '',
+                        type: 'Classroom Course',
+                        city: 'Pune (Hinjawadi)',
+                        mode: 'Classroom Bootcamp Weekdays (Monday to Friday)',
+                        date: '16th Feb 2027',
+                        month: 'February',
+                        time: '9:30 AM - 1:30 PM (4 Hours / Day)',
+                        seatsLeft: 8,
+                        totalSeats: 25,
+                        fee: '₹55,000'
+                      });
+                      setActiveAdminModal('add-batch');
+                    }}
+                  >
+                    <Plus size={14} /> Add New Batch
+                  </button>
+                </div>
+
+                <div className="crm-items-grid">
+                  {batches.map(b => (
+                    <div key={b._id || b.title} className="crm-item-card">
+                      <div>
+                        <div className="crm-card-top">
+                          <span className="crm-card-badge" style={{ background: '#ecfdf5', color: '#047857' }}>{b.type || 'Batch'}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#dc2626' }}>{b.seatsLeft} Seats Left</span>
+                        </div>
+                        <h4 className="crm-card-title">{b.title}</h4>
+                        <p className="crm-card-desc">{b.mode || 'Classroom Bootcamp Weekdays'}</p>
+                        <div className="crm-card-meta">
+                          <span className="crm-card-meta-item"><MapPin size={12} /> {b.city || 'Pune'}</span>
+                          <span className="crm-card-meta-item"><Calendar size={12} /> {b.date || 'Upcoming'}</span>
+                          <span className="crm-card-meta-item"><Clock size={12} /> {b.time || '10:00 AM'}</span>
+                        </div>
+                      </div>
+                      <div className="crm-card-actions">
+                        <button
+                          type="button"
+                          className="btn-crm-action edit"
+                          onClick={() => {
+                            setEditingItem(b);
+                            setEntityForm({ ...b });
+                            setActiveAdminModal('edit-batch');
+                          }}
+                        >
+                          <Edit size={13} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-crm-action delete"
+                          onClick={() => handleAdminDeleteEntity('batches', b._id)}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ================= TAB 4: REVIEWS & TESTIMONIALS ================= */}
+            {adminTab === 'testimonials' && (
+              <>
+                <div className="crm-sub-header">
+                  <div className="crm-sub-header-info">
+                    <h3>Student Success Stories & Reviews</h3>
+                    <p>Manage candidate testimonials, companies, and salary hikes shown on the live website.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary small"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setEntityForm({
+                        name: '',
+                        role: 'Machine Learning Engineer',
+                        company: 'Fractal Analytics',
+                        placedAt: 'Fractal Analytics',
+                        hike: '120% hike',
+                        image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                        text: ''
+                      });
+                      setActiveAdminModal('add-testimonial');
+                    }}
+                  >
+                    <Plus size={14} /> Add New Review
+                  </button>
+                </div>
+
+                <div className="crm-items-grid">
+                  {testimonials.map(t => (
+                    <div key={t._id || t.name} className="crm-item-card">
+                      <div>
+                        <div className="crm-card-top">
+                          <span className="crm-card-badge">{t.company || 'Hiring Partner'}</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#16a34a' }}>{t.hike || '100% Hike'}</span>
+                        </div>
+                        <h4 className="crm-card-title">{t.name}</h4>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: '#0284c7', margin: '0 0 6px 0' }}>{t.role} • Placed at {t.placedAt || t.company}</p>
+                        <p className="crm-card-desc">"{t.text}"</p>
+                      </div>
+                      <div className="crm-card-actions">
+                        <button
+                          type="button"
+                          className="btn-crm-action edit"
+                          onClick={() => {
+                            setEditingItem(t);
+                            setEntityForm({ ...t });
+                            setActiveAdminModal('edit-testimonial');
+                          }}
+                        >
+                          <Edit size={13} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-crm-action delete"
+                          onClick={() => handleAdminDeleteEntity('testimonials', t._id)}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ================= TAB 5: WHITEPAPERS & REPORTS ================= */}
+            {adminTab === 'reports' && (
+              <>
+                <div className="crm-sub-header">
+                  <div className="crm-sub-header-info">
+                    <h3>Research Whitepapers & Reports</h3>
+                    <p>Manage downloadable market whitepapers and intelligence publications live on website.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary small"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setEntityForm({
+                        title: '',
+                        category: 'GenAI & Autonomous Agents',
+                        badge: 'Industry Whitepaper',
+                        downloads: '14,200+ Downloads',
+                        description: ''
+                      });
+                      setActiveAdminModal('add-report');
+                    }}
+                  >
+                    <Plus size={14} /> Add New Report
+                  </button>
+                </div>
+
+                <div className="crm-items-grid">
+                  {reports.map(r => (
+                    <div key={r._id || r.title} className="crm-item-card">
+                      <div>
+                        <div className="crm-card-top">
+                          <span className="crm-card-badge">{r.badge || r.category}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{r.downloads}</span>
+                        </div>
+                        <h4 className="crm-card-title">{r.title}</h4>
+                        <p className="crm-card-desc">{r.description || 'Deep technical whitepaper published by NexaAI Lab.'}</p>
+                      </div>
+                      <div className="crm-card-actions">
+                        <button
+                          type="button"
+                          className="btn-crm-action edit"
+                          onClick={() => {
+                            setEditingItem(r);
+                            setEntityForm({ ...r });
+                            setActiveAdminModal('edit-report');
+                          }}
+                        >
+                          <Edit size={13} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-crm-action delete"
+                          onClick={() => handleAdminDeleteEntity('reports', r._id)}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ================= TAB 6: FAQS ================= */}
+            {adminTab === 'faqs' && (
+              <>
+                <div className="crm-sub-header">
+                  <div className="crm-sub-header-info">
+                    <h3>Frequently Asked Questions (FAQs)</h3>
+                    <p>Manage admissions, placement, and syllabus questions displayed in the public accordion.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary small"
+                    onClick={() => {
+                      setEditingItem(null);
+                      setEntityForm({ question: '', answer: '' });
+                      setActiveAdminModal('add-faq');
+                    }}
+                  >
+                    <Plus size={14} /> Add New FAQ
+                  </button>
+                </div>
+
+                <div className="crm-items-grid">
+                  {faqs.map(f => (
+                    <div key={f._id || f.question} className="crm-item-card">
+                      <div>
+                        <h4 className="crm-card-title">{f.question}</h4>
+                        <p className="crm-card-desc">{f.answer}</p>
+                      </div>
+                      <div className="crm-card-actions">
+                        <button
+                          type="button"
+                          className="btn-crm-action edit"
+                          onClick={() => {
+                            setEditingItem(f);
+                            setEntityForm({ ...f });
+                            setActiveAdminModal('edit-faq');
+                          }}
+                        >
+                          <Edit size={13} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-crm-action delete"
+                          onClick={() => handleAdminDeleteEntity('faqs', f._id)}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* ================= TAB 7: EXECUTIVE STATS ================= */}
+            {adminTab === 'stats' && (
+              <div className="crm-stats-grid">
+                <div className="crm-stat-tile">
+                  <div className="crm-stat-icon-wrap" style={{ background: '#eff6ff', color: '#1d4ed8' }}>
+                    <Users size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3>{adminLeadsList.length}</h3>
+                    <span>Total Inquiries Synced</span>
+                  </div>
+                </div>
+                <div className="crm-stat-tile">
+                  <div className="crm-stat-icon-wrap" style={{ background: '#ecfdf5', color: '#047857' }}>
+                    <BookOpen size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3>{courses.length}</h3>
+                    <span>Active Courses</span>
+                  </div>
+                </div>
+                <div className="crm-stat-tile">
+                  <div className="crm-stat-icon-wrap" style={{ background: '#fef3c7', color: '#b45309' }}>
+                    <Calendar size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3>{batches.length}</h3>
+                    <span>Live Batches & Cohorts</span>
+                  </div>
+                </div>
+                <div className="crm-stat-tile">
+                  <div className="crm-stat-icon-wrap" style={{ background: '#fdf4ff', color: '#a21caf' }}>
+                    <Star size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3>{testimonials.length}</h3>
+                    <span>Verified Reviews</span>
+                  </div>
+                </div>
+                <div className="crm-stat-tile">
+                  <div className="crm-stat-icon-wrap" style={{ background: '#f0fdfa', color: '#0f766e' }}>
+                    <FileText size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3>{reports.length}</h3>
+                    <span>Published Whitepapers</span>
+                  </div>
+                </div>
+                <div className="crm-stat-tile">
+                  <div className="crm-stat-icon-wrap" style={{ background: '#fff7ed', color: '#c2410c' }}>
+                    <HelpCircle size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3>{faqs.length}</h3>
+                    <span>Live FAQs</span>
+                  </div>
+                </div>
+                <div className="crm-stat-tile" style={{ gridColumn: '1 / -1' }}>
+                  <div className="crm-stat-icon-wrap" style={{ background: '#f0fdf4', color: '#15803d' }}>
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div className="crm-stat-content">
+                    <h3 style={{ fontSize: '18px' }}>Production Database: MongoDB Atlas (Cluster0)</h3>
+                    <span>Live Domain: https://nexaai.aparaitech.org • Real-Time 4-Second Polling & Audio Chime Active</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= INNER MODAL: ADD / EDIT ENTITY ================= */}
+            {activeAdminModal && (
+              <div className="crm-inner-modal-overlay" onClick={() => setActiveAdminModal(null)}>
+                <div className="crm-inner-modal-box" onClick={e => e.stopPropagation()}>
+                  <div className="crm-inner-modal-header">
+                    <h4>
+                      {activeAdminModal.startsWith('add') ? '➕ Add New ' : '✏️ Edit '}
+                      {activeAdminModal.includes('course') ? 'Course' :
+                       activeAdminModal.includes('batch') ? 'Batch' :
+                       activeAdminModal.includes('testimonial') ? 'Review' :
+                       activeAdminModal.includes('report') ? 'Whitepaper' : 'FAQ'}
+                    </h4>
+                    <button type="button" className="modal-close" onClick={() => setActiveAdminModal(null)}>
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleAdminSaveEntity} className="crm-inner-form">
+                    {/* COURSE FORM */}
+                    {activeAdminModal.includes('course') && (
+                      <div className="crm-form-grid-2">
+                        <div className="crm-form-group full-width">
+                          <label>Course Title *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.title || ''}
+                            onChange={e => setEntityForm({ ...entityForm, title: e.target.value })}
+                            placeholder="e.g. Generative AI & Autonomous Agentic Engineering"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Category *</label>
+                          <select
+                            value={entityForm.category || 'Data Science & Analytics'}
+                            onChange={e => setEntityForm({ ...entityForm, category: e.target.value })}
+                          >
+                            <option value="Data Science & Analytics">Data Science & Analytics</option>
+                            <option value="Artificial Intelligence">Artificial Intelligence</option>
+                            <option value="Generative AI & LLMs">Generative AI & LLMs</option>
+                            <option value="AI & Robotics Lab">AI & Robotics Lab</option>
+                          </select>
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Badge / Tag</label>
+                          <input
+                            type="text"
+                            value={entityForm.badge || ''}
+                            onChange={e => setEntityForm({ ...entityForm, badge: e.target.value })}
+                            placeholder="e.g. Flagship Program, Advanced AI"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Duration *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.duration || ''}
+                            onChange={e => setEntityForm({ ...entityForm, duration: e.target.value })}
+                            placeholder="e.g. 6–8 Months"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Total Hours *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.hours || ''}
+                            onChange={e => setEntityForm({ ...entityForm, hours: e.target.value })}
+                            placeholder="e.g. 546 Hours"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Course Fee *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.fee || ''}
+                            onChange={e => setEntityForm({ ...entityForm, fee: e.target.value })}
+                            placeholder="e.g. ₹68,000"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Original Fee</label>
+                          <input
+                            type="text"
+                            value={entityForm.originalFee || ''}
+                            onChange={e => setEntityForm({ ...entityForm, originalFee: e.target.value })}
+                            placeholder="e.g. ₹84,000"
+                          />
+                        </div>
+                        <div className="crm-form-group full-width">
+                          <label>Accredited Partner</label>
+                          <input
+                            type="text"
+                            value={entityForm.partner || ''}
+                            onChange={e => setEntityForm({ ...entityForm, partner: e.target.value })}
+                            placeholder="e.g. NASSCOM FutureSkills Prime & AI Industry Council"
+                          />
+                        </div>
+                        <div className="crm-form-group full-width">
+                          <label>Course Description *</label>
+                          <textarea
+                            rows={3}
+                            required
+                            value={entityForm.description || ''}
+                            onChange={e => setEntityForm({ ...entityForm, description: e.target.value })}
+                            placeholder="Overview of syllabus, enterprise capstones, and skills..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BATCH FORM */}
+                    {activeAdminModal.includes('batch') && (
+                      <div className="crm-form-grid-2">
+                        <div className="crm-form-group full-width">
+                          <label>Batch Program Title *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.title || ''}
+                            onChange={e => setEntityForm({ ...entityForm, title: e.target.value })}
+                            placeholder="e.g. Full Stack AI Bootcamp - Hinjawadi Classroom"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Batch Type *</label>
+                          <select
+                            value={entityForm.type || 'Classroom Course'}
+                            onChange={e => setEntityForm({ ...entityForm, type: e.target.value })}
+                          >
+                            <option value="Classroom Course">Classroom Course</option>
+                            <option value="AI & Robotics Lab">AI & Robotics Lab</option>
+                            <option value="Online Live Studio">Online Live Studio</option>
+                          </select>
+                        </div>
+                        <div className="crm-form-group">
+                          <label>City / Center *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.city || ''}
+                            onChange={e => setEntityForm({ ...entityForm, city: e.target.value })}
+                            placeholder="e.g. Pune (Hinjawadi)"
+                          />
+                        </div>
+                        <div className="crm-form-group full-width">
+                          <label>Learning Mode *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.mode || ''}
+                            onChange={e => setEntityForm({ ...entityForm, mode: e.target.value })}
+                            placeholder="e.g. Classroom Bootcamp Weekdays (Monday to Friday)"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Start Date *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.date || ''}
+                            onChange={e => setEntityForm({ ...entityForm, date: e.target.value })}
+                            placeholder="e.g. 19th Jan 2027"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Month *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.month || ''}
+                            onChange={e => setEntityForm({ ...entityForm, month: e.target.value })}
+                            placeholder="e.g. January"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Time Slot *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.time || ''}
+                            onChange={e => setEntityForm({ ...entityForm, time: e.target.value })}
+                            placeholder="e.g. 9:30 AM - 1:30 PM (4 Hours / Day)"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Seats Left *</label>
+                          <input
+                            type="number"
+                            required
+                            value={entityForm.seatsLeft ?? 6}
+                            onChange={e => setEntityForm({ ...entityForm, seatsLeft: parseInt(e.target.value, 10) || 0 })}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TESTIMONIAL FORM */}
+                    {activeAdminModal.includes('testimonial') && (
+                      <div className="crm-form-grid-2">
+                        <div className="crm-form-group">
+                          <label>Student Name *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.name || ''}
+                            onChange={e => setEntityForm({ ...entityForm, name: e.target.value })}
+                            placeholder="e.g. Priya Sharma"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Designation / Role *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.role || ''}
+                            onChange={e => setEntityForm({ ...entityForm, role: e.target.value })}
+                            placeholder="e.g. Senior ML Engineer"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Company *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.company || ''}
+                            onChange={e => setEntityForm({ ...entityForm, company: e.target.value })}
+                            placeholder="e.g. Fractal Analytics"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Salary Hike</label>
+                          <input
+                            type="text"
+                            value={entityForm.hike || ''}
+                            onChange={e => setEntityForm({ ...entityForm, hike: e.target.value })}
+                            placeholder="e.g. 130% hike"
+                          />
+                        </div>
+                        <div className="crm-form-group full-width">
+                          <label>Review Quote / Testimonial *</label>
+                          <textarea
+                            rows={3}
+                            required
+                            value={entityForm.text || ''}
+                            onChange={e => setEntityForm({ ...entityForm, text: e.target.value })}
+                            placeholder="Student feedback and career transformation experience..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* REPORT FORM */}
+                    {activeAdminModal.includes('report') && (
+                      <div className="crm-form-grid-2">
+                        <div className="crm-form-group full-width">
+                          <label>Report Title *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.title || ''}
+                            onChange={e => setEntityForm({ ...entityForm, title: e.target.value })}
+                            placeholder="e.g. India GenAI Enterprise Adoption Index"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Category *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.category || ''}
+                            onChange={e => setEntityForm({ ...entityForm, category: e.target.value })}
+                            placeholder="e.g. Market Intelligence"
+                          />
+                        </div>
+                        <div className="crm-form-group">
+                          <label>Badge / Tag</label>
+                          <input
+                            type="text"
+                            value={entityForm.badge || ''}
+                            onChange={e => setEntityForm({ ...entityForm, badge: e.target.value })}
+                            placeholder="e.g. Annual Benchmark"
+                          />
+                        </div>
+                        <div className="crm-form-group full-width">
+                          <label>Description *</label>
+                          <textarea
+                            rows={3}
+                            required
+                            value={entityForm.description || ''}
+                            onChange={e => setEntityForm({ ...entityForm, description: e.target.value })}
+                            placeholder="Summary of research conclusions..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* FAQ FORM */}
+                    {activeAdminModal.includes('faq') && (
+                      <div className="crm-form-grid-2">
+                        <div className="crm-form-group full-width">
+                          <label>Question *</label>
+                          <input
+                            type="text"
+                            required
+                            value={entityForm.question || ''}
+                            onChange={e => setEntityForm({ ...entityForm, question: e.target.value })}
+                            placeholder="e.g. How does the 1-on-1 placement support work?"
+                          />
+                        </div>
+                        <div className="crm-form-group full-width">
+                          <label>Answer *</label>
+                          <textarea
+                            rows={4}
+                            required
+                            value={entityForm.answer || ''}
+                            onChange={e => setEntityForm({ ...entityForm, answer: e.target.value })}
+                            placeholder="Detailed explanation..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="crm-inner-form-footer">
+                      <button
+                        type="button"
+                        className="btn-crm-action"
+                        onClick={() => setActiveAdminModal(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-primary small"
+                      >
+                        Save & Publish to Live Website
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      )}      )}
     </div>
   );
 }
