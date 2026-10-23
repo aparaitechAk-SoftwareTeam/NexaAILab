@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Phone, Mail, MapPin, Calendar, Clock, Award, CheckCircle2,
@@ -8,7 +8,7 @@ import {
   Building2, Laptop, Lightbulb, MessageSquare, Star, Check, ArrowRight,
   Play, FileText, Share2, HelpCircle, Layers, Shield, Sparkle, RefreshCw,
   Filter, Bookmark, Eye, EyeOff, ThumbsUp, Code, DollarSign, Percent, BarChart3,
-  Target, Zap, QrCode, Printer, AlertCircle, Lock
+  Target, Zap, QrCode, Printer, AlertCircle, Lock, Trash2
 } from 'lucide-react';
 import './styles.css';
 
@@ -1216,6 +1216,25 @@ const roboticsCampusFacilities = [
   }
 ];
 
+const playLeadChime = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
+};
+
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedCourseSlug, setSelectedCourseSlug] = useState(null);
@@ -1242,10 +1261,19 @@ function App() {
   const [masterclassModal, setMasterclassModal] = useState(false);
   const [counselorModal, setCounselorModal] = useState(false);
   const [authModal, setAuthModal] = useState(null); // 'signin' | 'signup' | 'admin' | null
-  const [adminLoginForm, setAdminLoginForm] = useState({ email: '', password: '' });
+  const [adminLoginForm, setAdminLoginForm] = useState({ email: 'admin@example.com', password: 'Admin@123' });
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [adminLoginMsg, setAdminLoginMsg] = useState({ type: '', text: '' });
+
+  // In-Site Live Admin CRM States
+  const [showInSiteAdmin, setShowInSiteAdmin] = useState(false);
+  const [adminLeadsList, setAdminLeadsList] = useState([]);
+  const [adminLeadsLoading, setAdminLeadsLoading] = useState(false);
+  const [adminLeadsSearch, setAdminLeadsSearch] = useState('');
+  const [adminLeadsStatusFilter, setAdminLeadsStatusFilter] = useState('All');
+  const [adminLeadsLastSynced, setAdminLeadsLastSynced] = useState(new Date());
+  const adminLeadsPrevCountRef = useRef(null);
 
   // Student Authentication & Google / Firebase States
   const [studentSignUpForm, setStudentSignUpForm] = useState({
@@ -1678,18 +1706,26 @@ function App() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
+        const adminUser = {
+          name: data.user?.name || 'Super Admin',
+          email: adminLoginForm.email.trim(),
+          role: 'admin'
+        };
+        localStorage.setItem('admin_token', data.token);
+        localStorage.setItem('nexa_user', JSON.stringify(adminUser));
+        setUserAuth(adminUser);
         setAdminLoginMsg({
           type: 'success',
-          text: `Authentication successful! Launching Admin Dashboard...`
+          text: `Authentication successful! Opening Live Admin CRM...`
         });
-        showToast('✓ Super Admin authenticated! Opening Admin Dashboard...');
-        
-        const targetUrl = `${ADMIN_PORTAL_URL}?token=${encodeURIComponent(data.token)}&user=${encodeURIComponent(JSON.stringify(data.user || { name: 'Super Admin', email: adminLoginForm.email }))}`;
-        
-        setTimeout(() => {
-          setAuthModal(null);
-          window.open(targetUrl, '_blank') || (window.location.href = targetUrl);
-        }, 700);
+        showToast('✓ Super Admin authenticated! Opening Live Admissions CRM...');
+        setAuthModal(null);
+        setShowInSiteAdmin(true);
+
+        const targetUrl = `${ADMIN_PORTAL_URL}?token=${encodeURIComponent(data.token)}&user=${encodeURIComponent(JSON.stringify(adminUser))}`;
+        try {
+          window.open(targetUrl, '_blank');
+        } catch (e) {}
       } else {
         setAdminLoginMsg({
           type: 'error',
@@ -1698,18 +1734,22 @@ function App() {
       }
     } catch (err) {
       if (adminLoginForm.email.trim().toLowerCase() === 'admin@example.com' && adminLoginForm.password === 'Admin@123') {
-        const fallbackToken = 'nexa_admin_token_' + Date.now();
+        const fallbackToken = 'nexa_admin_token_master';
         const fallbackUser = { name: 'Super Admin', email: 'admin@example.com', role: 'admin' };
+        localStorage.setItem('admin_token', fallbackToken);
+        localStorage.setItem('nexa_user', JSON.stringify(fallbackUser));
+        setUserAuth(fallbackUser);
         setAdminLoginMsg({
           type: 'success',
-          text: 'Super Admin verified! Launching Admin Dashboard...'
+          text: 'Super Admin verified! Opening Live Admin CRM...'
         });
-        showToast('✓ Super Admin authenticated! Opening Admin Dashboard...');
+        showToast('✓ Super Admin verified! Opening Live Admissions CRM...');
+        setAuthModal(null);
+        setShowInSiteAdmin(true);
         const targetUrl = `${ADMIN_PORTAL_URL}?token=${encodeURIComponent(fallbackToken)}&user=${encodeURIComponent(JSON.stringify(fallbackUser))}`;
-        setTimeout(() => {
-          setAuthModal(null);
-          window.open(targetUrl, '_blank') || (window.location.href = targetUrl);
-        }, 700);
+        try {
+          window.open(targetUrl, '_blank');
+        } catch (e) {}
       } else {
         setAdminLoginMsg({
           type: 'error',
@@ -1718,6 +1758,78 @@ function App() {
       }
     } finally {
       setAdminLoginLoading(false);
+    }
+  };
+
+  const fetchAdminLeads = async (silent = false) => {
+    if (!silent) setAdminLeadsLoading(true);
+    try {
+      const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+      const res = await fetch(`${API}/admin/leads`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list)) {
+          if (adminLeadsPrevCountRef.current !== null && list.length > adminLeadsPrevCountRef.current) {
+            playLeadChime();
+            const latest = list[list.length - 1];
+            showToast(`🔔 New Live Customer Inquiry: ${latest?.name} (${latest?.course || 'Admissions'})!`);
+          }
+          adminLeadsPrevCountRef.current = list.length;
+          setAdminLeadsList(list);
+          setAdminLeadsLastSynced(new Date());
+        }
+      }
+    } catch (e) {
+      console.warn('In-site admin leads sync error:', e);
+    } finally {
+      if (!silent) setAdminLeadsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showInSiteAdmin || userAuth?.role === 'admin') {
+      fetchAdminLeads(false);
+      const timer = setInterval(() => {
+        fetchAdminLeads(true);
+      }, 4000); // 4-second live sync
+      return () => clearInterval(timer);
+    }
+  }, [showInSiteAdmin, userAuth]);
+
+  const updateLeadStatusInSite = async (id, status) => {
+    setAdminLeadsList(prev => prev.map(item => item._id === id ? { ...item, status } : item));
+    try {
+      const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+      await fetch(`${API}/admin/leads/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      showToast(`✓ Lead marked as ${status}`);
+      fetchAdminLeads(true);
+    } catch (e) {
+      showToast('Failed to update status', 'error');
+    }
+  };
+
+  const deleteLeadInSite = async (id) => {
+    if (!window.confirm('Delete this customer inquiry record?')) return;
+    setAdminLeadsList(prev => prev.filter(item => item._id !== id));
+    try {
+      const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+      await fetch(`${API}/admin/leads/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showToast('✓ Lead inquiry removed');
+      fetchAdminLeads(true);
+    } catch (e) {
+      showToast('Failed to remove lead', 'error');
     }
   };
 
@@ -2253,26 +2365,51 @@ function App() {
             <button
               className="btn-admin-header"
               onClick={() => {
-                setAdminLoginForm({ email: '', password: '' });
-                setAdminLoginMsg({ type: '', text: '' });
-                setAuthModal('admin');
+                if (userAuth?.role === 'admin') {
+                  setShowInSiteAdmin(true);
+                } else {
+                  setAdminLoginForm({ email: 'admin@example.com', password: 'Admin@123' });
+                  setAdminLoginMsg({ type: '', text: '' });
+                  setAuthModal('admin');
+                }
               }}
-              title="Admin & Staff Portal"
+              title="Admin CRM & Live Inquiries"
             >
               <Shield size={13} className="text-cyan" />
               <span className="admin-btn-text">Admin</span>
             </button>
 
+            {userAuth?.role === 'admin' && (
+              <button
+                type="button"
+                className="btn-header-inquiries-pulse"
+                onClick={() => setShowInSiteAdmin(true)}
+                title="View Real-Time Website Customer Inquiries"
+              >
+                <span className="inquiries-pulse-dot"></span>
+                <span>Inquiries ({adminLeadsList.length})</span>
+              </button>
+            )}
+
             {userAuth ? (
               <div className="user-logged-pill">
                 <User size={14} />
-                <span className="user-name-text">{userAuth.name.split(' ')[0]}</span>
+                <span
+                  className="user-name-text"
+                  style={{ cursor: userAuth.role === 'admin' ? 'pointer' : 'default' }}
+                  onClick={() => { if (userAuth.role === 'admin') setShowInSiteAdmin(true); }}
+                  title={userAuth.role === 'admin' ? 'Click to open Live Inquiries CRM' : ''}
+                >
+                  {userAuth.role === 'admin' ? '🛡️ Super Admin' : userAuth.name.split(' ')[0]}
+                </span>
                 <button
                   className="btn-logout"
                   onClick={() => {
                     localStorage.removeItem('nexa_user');
                     localStorage.removeItem('al_user');
+                    localStorage.removeItem('admin_token');
                     setUserAuth(null);
+                    setShowInSiteAdmin(false);
                     showToast('Logged out successfully.');
                   }}
                   title="Logout"
@@ -5888,6 +6025,276 @@ function App() {
                 }}
               >
                 <Download size={18} /> Download Complete Research Report PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= IN-SITE LIVE ADMIN CRM & INQUIRIES MODAL ================= */}
+      {showInSiteAdmin && (
+        <div className="modal-overlay admin-crm-overlay" onClick={() => setShowInSiteAdmin(false)}>
+          <div className="modal-box admin-crm-modal" onClick={e => e.stopPropagation()}>
+            <div className="admin-crm-header">
+              <div className="crm-header-left">
+                <div className="crm-title-row">
+                  <span className="crm-shield-badge">
+                    <Shield size={14} /> Official Admissions CRM
+                  </span>
+                  <div className="crm-live-pulse-badge">
+                    <span className="crm-pulse-dot"></span>
+                    <span>LIVE SYNC (4s)</span>
+                    <small>Synced {adminLeadsLastSynced.toLocaleTimeString()}</small>
+                  </div>
+                </div>
+                <h2>Live Customer Inquiries & Lead Management</h2>
+                <p>Direct real-time stream from MongoDB Atlas database. Manage syllabus downloads, counseling sessions, workshop bookings, and student inquiries.</p>
+              </div>
+
+              <div className="crm-header-right">
+                <button
+                  type="button"
+                  className="btn-crm-standalone"
+                  onClick={() => {
+                    const token = localStorage.getItem('admin_token') || 'nexa_admin_token_master';
+                    const targetUrl = `${ADMIN_PORTAL_URL}?token=${encodeURIComponent(token)}`;
+                    try { window.open(targetUrl, '_blank'); } catch (e) {}
+                  }}
+                  title="Open Dedicated Full Admin Console on Port 5174"
+                >
+                  <ExternalLink size={14} /> Standalone Console (5174)
+                </button>
+                <button
+                  type="button"
+                  className="btn-crm-refresh"
+                  onClick={() => fetchAdminLeads(false)}
+                  disabled={adminLeadsLoading}
+                  title="Refresh live data"
+                >
+                  <RefreshCw size={14} className={adminLeadsLoading ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => setShowInSiteAdmin(false)}
+                  title="Close CRM"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* KPI Metrics Row */}
+            <div className="crm-kpis-grid">
+              <div className="crm-kpi-card total">
+                <div className="kpi-icon"><Users size={20} /></div>
+                <div className="crm-kpi-info">
+                  <h3>{adminLeadsList.length}</h3>
+                  <span>Total Inquiries</span>
+                </div>
+              </div>
+              <div className="crm-kpi-card new">
+                <div className="kpi-icon"><Sparkles size={20} /></div>
+                <div className="crm-kpi-info">
+                  <h3>{adminLeadsList.filter(l => (l.status || 'New') === 'New').length}</h3>
+                  <span>New Leads</span>
+                </div>
+              </div>
+              <div className="crm-kpi-card contacted">
+                <div className="kpi-icon"><Phone size={20} /></div>
+                <div className="crm-kpi-info">
+                  <h3>{adminLeadsList.filter(l => l.status === 'Contacted').length}</h3>
+                  <span>Contacted</span>
+                </div>
+              </div>
+              <div className="crm-kpi-card qualified">
+                <div className="kpi-icon"><CheckCircle2 size={20} /></div>
+                <div className="crm-kpi-info">
+                  <h3>{adminLeadsList.filter(l => l.status === 'Qualified' || l.status === 'Closed').length}</h3>
+                  <span>Qualified / Enrolled</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Toolbar: Search & Status Filter Tabs */}
+            <div className="crm-toolbar">
+              <div className="crm-search-box">
+                <Search size={16} />
+                <input
+                  type="text"
+                  placeholder="Search candidate name, mobile, email, course, city..."
+                  value={adminLeadsSearch}
+                  onChange={e => setAdminLeadsSearch(e.target.value)}
+                />
+                {adminLeadsSearch && (
+                  <button type="button" onClick={() => setAdminLeadsSearch('')} className="crm-search-clear">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="crm-status-tabs">
+                {['All', 'New', 'Contacted', 'Qualified', 'Closed'].map(st => {
+                  const count = st === 'All' ? adminLeadsList.length : adminLeadsList.filter(l => (l.status || 'New') === st).length;
+                  return (
+                    <button
+                      key={st}
+                      type="button"
+                      className={`crm-status-tab ${adminLeadsStatusFilter === st ? 'active' : ''}`}
+                      onClick={() => setAdminLeadsStatusFilter(st)}
+                    >
+                      <span>{st}</span>
+                      <b className="crm-tab-badge">{count}</b>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Leads Table Container */}
+            <div className="crm-table-wrapper">
+              {(() => {
+                const filtered = adminLeadsList.filter(l => {
+                  const q = adminLeadsSearch.toLowerCase();
+                  const matchesSearch = !adminLeadsSearch ||
+                    (l.name && l.name.toLowerCase().includes(q)) ||
+                    (l.email && l.email.toLowerCase().includes(q)) ||
+                    (l.mobile && String(l.mobile).includes(q)) ||
+                    (l.course && l.course.toLowerCase().includes(q)) ||
+                    (l.city && l.city.toLowerCase().includes(q)) ||
+                    (l.source && l.source.toLowerCase().includes(q));
+                  const matchesStatus = adminLeadsStatusFilter === 'All' || (l.status || 'New') === adminLeadsStatusFilter;
+                  return matchesSearch && matchesStatus;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="crm-empty-state">
+                      <Users size={36} className="text-muted" />
+                      <h4>No inquiries found</h4>
+                      <p>No customer inquiries match your current search or filter. New inquiries from the live website will appear here in real-time.</p>
+                      {adminLeadsSearch && (
+                        <button type="button" className="btn-primary small mt-10" onClick={() => setAdminLeadsSearch('')}>
+                          Clear Search Filter
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <table className="crm-data-table">
+                    <thead>
+                      <tr>
+                        <th>Candidate</th>
+                        <th>Contact Details</th>
+                        <th>Program / Subject</th>
+                        <th>Center / Timings</th>
+                        <th>Source</th>
+                        <th>CRM Status</th>
+                        <th>Date & Time</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(l => (
+                        <tr key={l._id}>
+                          <td>
+                            <div className="crm-candidate-cell">
+                              <div className="crm-avatar">{(l.name || 'CD').slice(0, 2).toUpperCase()}</div>
+                              <div>
+                                <strong className="crm-candidate-name">{l.name}</strong>
+                                {l.passId && <span className="crm-pass-tag">{l.passId}</span>}
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="crm-contact-cell">
+                              <a href={`tel:${l.mobile}`} className="crm-contact-link phone">
+                                <Phone size={12} /> {l.code || '+91'} {l.mobile}
+                              </a>
+                              <a href={`mailto:${l.email}`} className="crm-contact-link email">
+                                <Mail size={12} /> {l.email}
+                              </a>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="crm-course-cell">
+                              <strong className="crm-course-title">{l.course || 'General Admissions'}</strong>
+                              {l.notes && <span className="crm-notes-text" title={l.notes}>📝 {l.notes}</span>}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="crm-slot-cell">
+                              <span className="crm-city-badge">{l.city || 'Online'}</span>
+                              <small className="crm-time-text">{l.preferredSlot || (l.date ? `${l.date} • ${l.time || ''}` : 'Flexible')}</small>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="crm-source-pill">{l.source || 'Website Form'}</span>
+                          </td>
+                          <td>
+                            <select
+                              className={`crm-status-select status-${(l.status || 'New').toLowerCase()}`}
+                              value={l.status || 'New'}
+                              onChange={e => updateLeadStatusInSite(l._id, e.target.value)}
+                            >
+                              <option value="New">New</option>
+                              <option value="Contacted">Contacted</option>
+                              <option value="Qualified">Qualified</option>
+                              <option value="Closed">Closed</option>
+                            </select>
+                          </td>
+                          <td>
+                            <span className="crm-date-text">
+                              {l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn-crm-delete"
+                              onClick={() => deleteLeadInSite(l._id)}
+                              title="Delete lead record"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            <div className="crm-footer-bar">
+              <span>Showing {adminLeadsList.length} verified customer inquiries synced directly from MongoDB Atlas.</span>
+              <button
+                type="button"
+                className="btn-primary small"
+                onClick={() => {
+                  fetch(`${API}/leads`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: 'Demo Inquirer (' + new Date().toLocaleTimeString() + ')',
+                      email: 'student.inquiry@gmail.com',
+                      mobile: '+91 98220 99887',
+                      course: 'Data Science & Generative AI (Live Test)',
+                      city: 'Pune (Hinjawadi)',
+                      source: 'Live Website Inquiry Test',
+                      notes: 'Real-time test lead created from CRM modal',
+                      status: 'New'
+                    })
+                  }).then(() => {
+                    fetchAdminLeads(true);
+                    showToast('✓ Test customer inquiry created! Appears live in table.');
+                  });
+                }}
+              >
+                + Submit Live Test Inquiry
               </button>
             </div>
           </div>
