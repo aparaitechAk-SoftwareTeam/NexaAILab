@@ -5643,7 +5643,9 @@ function App() {
                     <span className="admin-shield-tag">
                       <Shield size={13} /> Official Admissions & CRM
                     </span>
-                    <span className="admin-port-tag">Port 5174</span>
+                    <span className="admin-port-tag" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}>
+                      🌐 nexaai.aparaitech.org
+                    </span>
                   </div>
                   <h3>NexaAI Lab Admin Console</h3>
                   <p>Restricted access for Admissions Team, Instructors & System Administrators to manage real-time leads, courses, batches, and portal settings.</p>
@@ -6040,6 +6042,9 @@ function App() {
                 <div className="crm-title-row">
                   <span className="crm-shield-badge">
                     <Shield size={14} /> Official Admissions CRM
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', fontSize: '12px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px' }}>
+                    🌐 nexaai.aparaitech.org
                   </span>
                   <div className="crm-live-pulse-badge">
                     <span className="crm-pulse-dot"></span>

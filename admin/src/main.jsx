@@ -10,6 +10,7 @@ import {
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const LIVE_SITE_URL = import.meta.env.VITE_PUBLIC_SITE_URL || 'https://nexaai.aparaitech.org';
 
 const cleanFeeNumber = (val, fallback = 0) => {
   if (!val) return fallback;
@@ -672,9 +673,12 @@ function App() {
             {loginMsg && <div className="login-error-alert" style={{ marginTop: '12px' }}>{loginMsg}</div>}
           </form>
 
-          <div className="login-footer" style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
-            <a href="http://localhost:5173" target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 600, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              🌐 Open Public Live Website (Port 5173) <ExternalLink size={13} />
+          <div className="login-footer" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <a href={LIVE_SITE_URL} target="_blank" rel="noreferrer" style={{ color: '#0284c7', fontWeight: 700, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              🌐 Open Live Website (nexaai.aparaitech.org) <ExternalLink size={13} />
+            </a>
+            <a href="http://localhost:5173" target="_blank" rel="noreferrer" style={{ color: '#64748b', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              Local Dev Preview: localhost:5173 <ExternalLink size={11} />
             </a>
           </div>
         </div>
@@ -880,13 +884,14 @@ function App() {
 
         <div className="sidebar-bottom">
           <a
-            href="http://localhost:5173"
+            href={LIVE_SITE_URL}
             target="_blank"
             rel="noreferrer"
             className="external-link-btn"
+            title="Open Live Website: https://nexaai.aparaitech.org"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#0284c7', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontWeight: 700, textDecoration: 'none', marginBottom: '8px' }}
           >
-            <ExternalLink size={16} /> Open Public Website
+            <ExternalLink size={16} /> 🌐 Live Website (nexaai.aparaitech.org)
           </a>
           <button className="logout-btn" onClick={handleLogout}>
             <LogOut size={16} /> Sign Out
@@ -905,11 +910,11 @@ function App() {
 
           <div className="topbar-actions">
             <a
-              href="http://localhost:5173"
+              href={LIVE_SITE_URL}
               target="_blank"
               rel="noreferrer"
               className="topbar-live-site-pill"
-              title="Open Public Live Website (Port 5173)"
+              title="Open Live Production Website: https://nexaai.aparaitech.org"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -926,7 +931,7 @@ function App() {
               }}
             >
               <ExternalLink size={13} />
-              <span>Public Website (5173)</span>
+              <span>🌐 Live: nexaai.aparaitech.org</span>
             </a>
 
             <div className="live-sync-indicator" title="MongoDB Atlas live sync polling active (4s)">
