@@ -21,6 +21,25 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
+// Root and health endpoints for Render / monitoring
+app.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'NexaAI Lab Backend API',
+    status: 'online',
+    environment: process.env.NODE_ENV || 'production',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({
+    ok: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.use('/api', publicRoutes);
 app.use('/api/admin', adminRoutes);
 
@@ -122,7 +141,8 @@ async function seed() {
 }
 
 async function start() {
-  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/nexaailab';
+  const defaultAtlasUri = "mongodb://mailblast:Aparaitech2129@ac-rl6rdwo-shard-00-00.kmi9oku.mongodb.net:27017,ac-rl6rdwo-shard-00-01.kmi9oku.mongodb.net:27017,ac-rl6rdwo-shard-00-02.kmi9oku.mongodb.net:27017/nexaailab?ssl=true&replicaSet=atlas-3ebffw-shard-0&authSource=admin&appName=Cluster0";
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || defaultAtlasUri;
   try {
     console.log('Attempting MongoDB connection...');
     await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000, dbName: 'nexaailab' });
@@ -137,9 +157,9 @@ async function start() {
   await seed();
 
   const port = process.env.PORT || 5000;
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`=============================================`);
-    console.log(`🚀 NexaAI Lab API running on http://localhost:${port}`);
+    console.log(`🚀 NexaAI Lab API running on port ${port} (0.0.0.0)`);
     console.log(`Admin credentials: admin@example.com / Admin@123`);
     console.log(`=============================================`);
   });

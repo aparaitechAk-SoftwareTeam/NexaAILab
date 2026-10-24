@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: nexaai-lab-backend
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        value: mongodb://mailblast:Aparaitech2129@ac-rl6rdwo-shard-00-00.kmi9oku.mongodb.net:27017,ac-rl6rdwo-shard-00-01.kmi9oku.mongodb.net:27017,ac-rl6rdwo-shard-00-02.kmi9oku.mongodb.net:27017/nexaailab?ssl=true&replicaSet=atlas-3ebffw-shard-0&authSource=admin&appName=Cluster0
+      - key: MONGO_URI
+        value: mongodb://mailblast:Aparaitech2129@ac-rl6rdwo-shard-00-00.kmi9oku.mongodb.net:27017,ac-rl6rdwo-shard-00-01.kmi9oku.mongodb.net:27017,ac-rl6rdwo-shard-00-02.kmi9oku.mongodb.net:27017/nexaailab?ssl=true&replicaSet=atlas-3ebffw-shard-0&authSource=admin&appName=Cluster0
+      - key: JWT_SECRET
+        value: analytixlabs_super_secure_jwt_secret_2026
+      - key: ADMIN_EMAIL
+        value: admin@example.com
+      - key: ADMIN_PASSWORD
+        value: Admin@123
+      - key: CLIENT_URL
+        value: https://nexaai.aparaitech.org
+      - key: ADMIN_URL
+        value: https://nexaai.aparaitech.org
