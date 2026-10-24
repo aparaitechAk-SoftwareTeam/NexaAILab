@@ -21,8 +21,46 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const rawApi = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const API = rawApi.endsWith('/api') ? rawApi : `${rawApi}/api`;
 const ADMIN_PORTAL_URL = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
+
+// Resilient fetch wrapper ensuring live inquiry submissions never drop or 404
+if (typeof window !== 'undefined' && window.fetch) {
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async function (input, init = {}) {
+    try {
+      const res = await nativeFetch(input, init);
+      if (res.ok) return res;
+      if (res.status === 404 && typeof input === 'string') {
+        let alt = null;
+        if (input.includes('/api/leads')) alt = input.replace('/api/leads', '/leads');
+        else if (input.includes('/leads')) alt = input.replace('/leads', '/api/leads');
+        else if (input.includes('/api/masterclass-register')) alt = input.replace('/api/masterclass-register', '/masterclass-register');
+        else if (input.includes('/masterclass-register')) alt = input.replace('/masterclass-register', '/api/masterclass-register');
+        else if (input.includes('/api/courses')) alt = input.replace('/api/courses', '/courses');
+        else if (input.includes('/courses')) alt = input.replace('/courses', '/api/courses');
+        else if (input.includes('/api/batches')) alt = input.replace('/api/batches', '/batches');
+        else if (input.includes('/batches')) alt = input.replace('/batches', '/api/batches');
+        if (alt) {
+          const altRes = await nativeFetch(alt, init);
+          if (altRes.ok) return altRes;
+        }
+      }
+      return res;
+    } catch (err) {
+      if (typeof input === 'string' && (input.includes('/leads') || input.includes('/masterclass-register')) && init.method === 'POST') {
+        const cloudUrl = input.includes('/masterclass-register')
+          ? 'https://nexaailab.onrender.com/api/masterclass-register'
+          : 'https://nexaailab.onrender.com/api/leads';
+        try {
+          return await nativeFetch(cloudUrl, init);
+        } catch (e) {}
+      }
+      throw err;
+    }
+  };
+}
 
 const parsePriceNumber = (val, fallback = 55000) => {
   if (!val) return fallback;

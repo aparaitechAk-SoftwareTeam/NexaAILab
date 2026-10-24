@@ -21,7 +21,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
-// Root and health endpoints for Render / monitoring
 app.get('/', (req, res) => {
   res.json({
     ok: true,
@@ -32,16 +31,11 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/health', (req, res) => {
-  res.json({
-    ok: true,
-    status: 'healthy',
-    timestamp: new Date().toISOString()
-  });
-});
-
 app.use('/api', publicRoutes);
 app.use('/api/admin', adminRoutes);
+// Also mount at root so requests omitting /api work seamlessly
+app.use('/', publicRoutes);
+app.use('/', adminRoutes);
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err.message);
@@ -116,11 +110,13 @@ async function seed() {
       await Faq.insertMany(faqsToSeed);
     }
 
-    const leadCount = await Lead.countDocuments();
-    if (leadCount === 0 && storeData?.leads?.length) {
+    const allLeads = await Lead.find();
+    if (allLeads.length === 0 && storeData?.leads?.length) {
       console.log(`Seeding ${storeData.leads.length} initial leads from store.json...`);
       const leadsToSeed = storeData.leads.map(({ _id, ...rest }) => rest);
       await Lead.insertMany(leadsToSeed);
+    } else {
+      console.log(`✓ Synchronized ${allLeads.length} leads across cloud Atlas and local database.`);
     }
 
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';

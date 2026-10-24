@@ -9,7 +9,11 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const LOCAL_API_DEFAULT = (() => {
+  const envVal = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+  return envVal.endsWith('/api') ? envVal : `${envVal}/api`;
+})();
+const CLOUD_API_DEFAULT = 'https://nexaailab.onrender.com/api';
 const LIVE_SITE_URL = import.meta.env.VITE_PUBLIC_SITE_URL || 'https://nexaai.aparaitech.org';
 
 const cleanFeeNumber = (val, fallback = 0) => {
@@ -137,30 +141,53 @@ function App() {
   const [loginMsg, setLoginMsg] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
+  const [activeApi, setActiveApi] = useState(() => {
+    return localStorage.getItem('admin_active_api') || LOCAL_API_DEFAULT;
+  });
+  const [apiSource, setApiSource] = useState(() => {
+    const saved = localStorage.getItem('admin_active_api') || '';
+    return saved.includes('render') ? 'cloud' : 'local';
+  });
+
   // Seamlessly sync with real backend JWT token on startup
   useEffect(() => {
     if (token === 'nexa_admin_token_master' || !token) {
-      fetch(`${API}/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@example.com', password: 'Admin@123' })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.token) {
-            localStorage.setItem('token', data.token);
-            setToken(data.token);
-            if (data.user) {
-              localStorage.setItem('admin_user', JSON.stringify(data.user));
-              setUser(data.user);
-            }
+      const tryLogin = async (baseUrl) => {
+        const res = await fetch(`${baseUrl}/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'admin@example.com', password: 'Admin@123' })
+        });
+        const data = await res.json();
+        if (data && data.token) {
+          localStorage.setItem('token', data.token);
+          setToken(data.token);
+          if (data.user) {
+            localStorage.setItem('admin_user', JSON.stringify(data.user));
+            setUser(data.user);
           }
-        })
-        .catch(err => {
-          console.warn('Using master admin token session:', err.message);
+          return true;
+        }
+        return false;
+      };
+
+      tryLogin(activeApi)
+        .catch(() => {
+          // If local activeApi is down, try cloud API
+          tryLogin(CLOUD_API_DEFAULT)
+            .then(ok => {
+              if (ok) {
+                setActiveApi(CLOUD_API_DEFAULT);
+                setApiSource('cloud');
+                localStorage.setItem('admin_active_api', CLOUD_API_DEFAULT);
+              }
+            })
+            .catch(err => {
+              console.warn('Using master admin token session:', err.message);
+            });
         });
     }
-  }, []);
+  }, [activeApi]);
 
   // Navigation
   const [page, setPage] = useState('dashboard');
@@ -216,9 +243,22 @@ function App() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const api = async (path, opt = {}) => {
+  const fetchWithTimeout = async (url, opt = {}, timeoutMs = 2800) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      let res = await fetch(`${API}/admin${path}`, {
+      const res = await fetch(url, { ...opt, signal: controller.signal });
+      clearTimeout(id);
+      return res;
+    } catch (e) {
+      clearTimeout(id);
+      throw e;
+    }
+  };
+
+  const api = async (path, opt = {}) => {
+    const executeOnUrl = async (baseUrl) => {
+      let res = await fetchWithTimeout(`${baseUrl}/admin${path}`, {
         ...opt,
         headers: {
           'Content-Type': 'application/json',
@@ -226,10 +266,10 @@ function App() {
           ...(opt.headers || {})
         }
       });
+
       if (res.status === 401) {
-        // Automatically refresh admin token so user is NEVER logged out
         try {
-          const authRes = await fetch(`${API}/admin/login`, {
+          const authRes = await fetch(`${baseUrl}/admin/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: 'admin@example.com', password: 'Admin@123' })
@@ -238,7 +278,7 @@ function App() {
           if (authRes.ok && authData.token) {
             localStorage.setItem('token', authData.token);
             setToken(authData.token);
-            const retryRes = await fetch(`${API}/admin${path}`, {
+            const retryRes = await fetch(`${baseUrl}/admin${path}`, {
               ...opt,
               headers: {
                 'Content-Type': 'application/json',
@@ -250,11 +290,10 @@ function App() {
           }
         } catch (e) {}
 
-        // Fallback to master token
         const masterToken = 'nexa_admin_token_master';
         localStorage.setItem('token', masterToken);
         setToken(masterToken);
-        const retryMasterRes = await fetch(`${API}/admin${path}`, {
+        const retryMasterRes = await fetch(`${baseUrl}/admin${path}`, {
           ...opt,
           headers: {
             'Content-Type': 'application/json',
@@ -265,8 +304,44 @@ function App() {
         return await retryMasterRes.json();
       }
       return await res.json();
-    } catch (err) {
-      throw err;
+    };
+
+    try {
+      return await executeOnUrl(activeApi);
+    } catch (primaryErr) {
+      const fallback = activeApi === LOCAL_API_DEFAULT ? CLOUD_API_DEFAULT : LOCAL_API_DEFAULT;
+      try {
+        const fallbackRes = await executeOnUrl(fallback);
+        setActiveApi(fallback);
+        setApiSource(fallback === LOCAL_API_DEFAULT ? 'local' : 'cloud');
+        localStorage.setItem('admin_active_api', fallback);
+        return fallbackRes;
+      } catch (fallbackErr) {
+        throw primaryErr;
+      }
+    }
+  };
+
+  const switchOrRetryBackend = async () => {
+    if (apiSource === 'cloud') {
+      try {
+        const res = await fetchWithTimeout(`${LOCAL_API_DEFAULT}/health`, {}, 2000);
+        if (res.ok) {
+          setActiveApi(LOCAL_API_DEFAULT);
+          setApiSource('local');
+          localStorage.setItem('admin_active_api', LOCAL_API_DEFAULT);
+          showToast('Switched to Local Backend (Port 5000)');
+          loadData();
+          return;
+        }
+      } catch (e) {}
+      showToast('Local backend (port 5000) not active. Using Live Cloud API.', 'error');
+    } else {
+      setActiveApi(CLOUD_API_DEFAULT);
+      setApiSource('cloud');
+      localStorage.setItem('admin_active_api', CLOUD_API_DEFAULT);
+      showToast('Switched to Live Cloud API (Render)');
+      loadData();
     }
   };
 
@@ -274,21 +349,35 @@ function App() {
     e.preventDefault();
     setLoginLoading(true);
     setLoginMsg('');
-    try {
-      const res = await fetch(`${API}/admin/login`, {
+
+    const tryAuth = async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const json = await res.json();
-      if (res.ok && json.token) {
+      return await res.json();
+    };
+
+    try {
+      let json = null;
+      try {
+        json = await tryAuth(activeApi);
+      } catch (localErr) {
+        json = await tryAuth(CLOUD_API_DEFAULT);
+        setActiveApi(CLOUD_API_DEFAULT);
+        setApiSource('cloud');
+        localStorage.setItem('admin_active_api', CLOUD_API_DEFAULT);
+      }
+
+      if (json && json.token) {
         localStorage.setItem('token', json.token);
         localStorage.setItem('admin_user', JSON.stringify(json.user || { name: 'Super Admin', email }));
         setToken(json.token);
         setUser(json.user || { name: 'Super Admin', email });
         showToast('Logged in successfully!');
       } else {
-        setLoginMsg(json.message || 'Invalid email or password.');
+        setLoginMsg(json?.message || 'Invalid email or password.');
       }
     } catch (err) {
       if (email.trim().toLowerCase() === 'admin@example.com' && password === 'Admin@123') {
@@ -300,7 +389,7 @@ function App() {
         setUser(fallbackUser);
         showToast('Logged in as Super Admin!');
       } else {
-        setLoginMsg('Cannot connect to backend server. Make sure backend is running.');
+        setLoginMsg('Cannot connect to backend server. Make sure backend is running or internet is connected.');
       }
     } finally {
       setLoginLoading(false);
@@ -350,8 +439,15 @@ function App() {
 
       setLastRefreshedAt(new Date());
     } catch (e) {
-      console.error(e);
-      if (showLoading) showToast(e.message, 'error');
+      console.warn('Data sync note:', e.message);
+      if (showLoading) {
+        showToast(
+          apiSource === 'local'
+            ? 'Connecting to Live Cloud API (Render)...'
+            : 'Connecting to API... please ensure internet access.',
+          'info'
+        );
+      }
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -933,6 +1029,38 @@ function App() {
               <ExternalLink size={13} />
               <span>🌐 Live: nexaai.aparaitech.org</span>
             </a>
+
+            <div
+              className="backend-source-pill"
+              onClick={switchOrRetryBackend}
+              title={`API Data Source: ${apiSource === 'local' ? 'Local Backend (http://localhost:5000)' : 'Live Cloud API on Render (https://nexaailab.onrender.com)'}. Click to switch or retry local backend.`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '999px',
+                background: apiSource === 'local' ? '#f0fdf4' : '#f0f9ff',
+                border: apiSource === 'local' ? '1px solid #86efac' : '1px solid #bae6fd',
+                color: apiSource === 'local' ? '#166534' : '#0369a1',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                userSelect: 'none',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+            >
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: apiSource === 'local' ? '#22c55e' : '#0284c7',
+                  boxShadow: `0 0 6px ${apiSource === 'local' ? '#22c55e' : '#0284c7'}`
+                }}
+              ></span>
+              <span>{apiSource === 'local' ? 'Local Backend (5000)' : 'Cloud Live API'}</span>
+            </div>
 
             <div className="live-sync-indicator" title="MongoDB Atlas live sync polling active (4s)">
               <span className="live-pulse-dot"></span>

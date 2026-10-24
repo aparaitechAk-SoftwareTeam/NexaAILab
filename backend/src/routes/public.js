@@ -105,14 +105,16 @@ r.post('/leads', async (req, res) => {
   try {
     const { name, mobile, phone, email, city, code, course, source, notes, preferredSlot, date, time, passId, background } = req.body;
     const resolvedMobile = (mobile || phone || '').toString().trim();
-    if (!name || !resolvedMobile || !email) {
-      return res.status(400).json({ message: 'Please provide name, mobile/phone, and email address.' });
+    const resolvedName = (name || 'Website Inquiry').trim();
+    if (!resolvedMobile && !email) {
+      return res.status(400).json({ message: 'Please provide either mobile/phone or email address.' });
     }
+    const resolvedEmail = (email || `${resolvedName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'inquiry'}@candidate.inquiry`).trim();
     const lead = await Lead.create({
-      name: name.trim(),
+      name: resolvedName,
       code: code || '+91',
-      mobile: resolvedMobile,
-      email: email.trim(),
+      mobile: resolvedMobile || 'N/A',
+      email: resolvedEmail,
       city: city || 'Pune (Hinjawadi)',
       course: course || 'General Inquiry',
       source: source || 'Website Form',
