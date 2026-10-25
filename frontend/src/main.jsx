@@ -1,3 +1,55 @@
+
+const DigitalQrCode = ({ passId = 'PASS-PUNE-JAN-846262', candidate = '' }) => {
+  const hash = Array.from(passId + candidate).reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0);
+  const size = 110;
+  const cells = 15;
+  const cellSize = size / cells;
+
+  const isDark = (r, c) => {
+    if ((r < 5 && c < 5) || (r < 5 && c >= cells - 5) || (r >= cells - 5 && c < 5)) {
+      if (r === 0 || r === 4 || c === 0 || c === 4 || (r === cells - 1 || r === cells - 5 || c === cells - 1 || c === cells - 5)) return true;
+      if (r >= 1 && r <= 3 && c >= 1 && c <= 3) return true;
+      if (r >= 1 && r <= 3 && c >= cells - 4 && c <= cells - 2) return true;
+      if (r >= cells - 4 && r <= cells - 2 && c >= 1 && c <= 3) return true;
+      return false;
+    }
+    if (r >= 6 && r <= 8 && c >= 6 && c <= 8) return false;
+    const bit = (hash * (r * 13 + c * 7 + 11)) % 100;
+    return bit > 45;
+  };
+
+  const rects = [];
+  for (let r = 0; r < cells; r++) {
+    for (let c = 0; c < cells; c++) {
+      if (isDark(r, c)) {
+        rects.push(
+          <rect
+            key={`${r}-${c}`}
+            x={c * cellSize}
+            y={r * cellSize}
+            width={cellSize - 0.5}
+            height={cellSize - 0.5}
+            fill="#0f172a"
+            rx={0.6}
+          />
+        );
+      }
+    }
+  }
+
+  return (
+    <div className="digital-qr-wrap" title={`Verified Admission QR for ${passId}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <rect width={size} height={size} fill="#ffffff" rx={8} />
+        {rects}
+        <rect x={size / 2 - 12} y={size / 2 - 12} width={24} height={24} fill="#0284c7" rx={4} />
+        <text x={size / 2} y={size / 2 + 4} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="800" fontFamily="sans-serif">NX</text>
+      </svg>
+      <span className="qr-scan-hint">Scan at Reception Desk</span>
+    </div>
+  );
+};
+
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -5453,40 +5505,263 @@ function App() {
         <div className="modal-overlay" onClick={() => setPassData(null)}>
           <div className="modal-box pass-modal" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setPassData(null)}><X size={20} /></button>
-            <div className="admission-pass-card">
-              <div className="pass-top">
-                <div className="logo white small">
-                  NEXA<span className="logo-x">AI</span> LAB
-                </div>
-                <span className="pass-type-badge">{passData.type}</span>
+            <div className="reservation-pass-card admission-pass-printable">
+              
+              {/* Holographic Shimmer Sheen */}
+              <div className="pass-shimmer-sheen" aria-hidden="true"></div>
+
+              {/* Watermark Overlay */}
+              <div className="pass-watermark-overlay" aria-hidden="true">
+                <div className="pass-watermark-text">NEXA AI LAB • VERIFIED OFFICIAL PASS</div>
               </div>
 
-              <div className="pass-body">
-                <h3>{passData.event}</h3>
-                <div className="pass-meta-row">
-                  <div><small>Attendee Name:</small> <b>{passData.name}</b></div>
-                  <div><small>Pass ID:</small> <code>{passData.passId}</code></div>
-                </div>
-                <div className="pass-meta-row">
-                  <div><small>Date & Time:</small> <b>{passData.date}</b></div>
-                  <div><small>Mode / Platform:</small> <b>{passData.platform}</b></div>
+              <div className="pass-card-content">
+                {/* 1. Header: 3D Logo + Tagline + Curved Blue Reservation Badge */}
+                <div className="pass-card-header">
+                  <div className="pass-logo-wrap">
+                    <div className="pass-3d-n-logo">
+                      <svg viewBox="0 0 48 48" className="n-logo-svg">
+                        <defs>
+                          <linearGradient id="nGradFront1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#0066cc"/>
+                            <stop offset="100%" stopColor="#003366"/>
+                          </linearGradient>
+                          <linearGradient id="nGradFront2" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#00d2ff"/>
+                            <stop offset="100%" stopColor="#0066cc"/>
+                          </linearGradient>
+                        </defs>
+                        <path d="M8 8 L18 8 L18 40 L8 40 Z" fill="url(#nGradFront1)"/>
+                        <path d="M18 8 L38 32 L38 40 L18 16 Z" fill="url(#nGradFront2)"/>
+                        <path d="M30 8 L40 8 L40 40 L30 40 Z" fill="url(#nGradFront1)"/>
+                      </svg>
+                    </div>
+
+                    <div className="pass-brand-text">
+                      <div className="pass-brand-title">
+                        <span className="brand-dark">NEXA</span>
+                        <span className="brand-accent">AI</span>
+                        <span className="brand-dark">LAB</span>
+                      </div>
+                      <div className="pass-brand-divider"></div>
+                      <div className="pass-brand-tagline">
+                        <span>LEARN</span>
+                        <span>BUILD</span>
+                        <span>INNOVATE</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Curved Blue Reservation Badge */}
+                  <div className="pass-curved-seat-badge">
+                    <div className="seat-badge-text">
+                      <span className="badge-primary">Classroom Seat</span>
+                      <span className="badge-secondary">Reservation Pass</span>
+                    </div>
+                    <div className="seat-badge-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 4h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+                        <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
+                        <path d="M8 20v2"/>
+                        <path d="M16 20v2"/>
+                      </svg>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="pass-qr-box">
-                  <QrCode size={70} className="mx-auto text-navy" />
-                  <small>Scan at campus entrance or click below to join Zoom</small>
+                {/* 2. Hero Course Title */}
+                <div className="pass-hero-title-box">
+                  <h1 className="pass-main-course-title">{passData.event || 'Full Stack AI & Autonomous Agents'}</h1>
+                  <div className="pass-cohort-subtitle">(Classroom Bootcamp Weekdays)</div>
+                  <div className="pass-weekdays-tag">( M O N D A Y &nbsp; T O &nbsp; F R I D A Y )</div>
                 </div>
+
+                {/* 3. Candidate Details Box (2x2 Grid) */}
+                <div className="pass-candidate-grid-card">
+                  <div className="pass-2x2-grid">
+                    <div className="pass-grid-item">
+                      <div className="pass-circle-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                      </div>
+                      <div className="pass-field-info">
+                        <span className="field-label">Attendee Name:</span>
+                        <strong className="field-value">{passData.name || 'Candidate'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="pass-grid-item">
+                      <div className="pass-circle-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="16" rx="3"/>
+                          <circle cx="9" cy="10" r="2"/>
+                          <line x1="15" y1="8" x2="17" y2="8"/>
+                          <line x1="15" y1="12" x2="17" y2="12"/>
+                          <line x1="7" y1="16" x2="17" y2="16"/>
+                        </svg>
+                      </div>
+                      <div className="pass-field-info">
+                        <span className="field-label">Pass ID:</span>
+                        <strong className="field-value font-mono">{passData.passId || 'PASS-PUNE-JAN-846262'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="pass-grid-item">
+                      <div className="pass-circle-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                          <line x1="16" y1="2" x2="16" y2="6"/>
+                          <line x1="8" y1="2" x2="8" y2="6"/>
+                          <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                      </div>
+                      <div className="pass-field-info">
+                        <span className="field-label">Date & Time:</span>
+                        <strong className="field-value">{passData.date || '12th Jan 2027 9:30 AM – 1:30 PM (4 Hours / Day)'}</strong>
+                      </div>
+                    </div>
+
+                    <div className="pass-grid-item">
+                      <div className="pass-circle-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </div>
+                      <div className="pass-field-info">
+                        <span className="field-label">Mode / Platform:</span>
+                        <strong className="field-value">{passData.platform || 'Pune Hinjawadi Innovation Campus'}</strong>
+                        <span className="field-sub">(Phase 1, Near Rajiv Gandhi Infotech Park)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Dual Verification Bar */}
+                <div className="pass-verification-bar">
+                  <div className="verification-item left">
+                    <div className="verif-icon-box">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                      </svg>
+                    </div>
+                    <span className="verif-text">Scan at Campus<br/>Entrance</span>
+                  </div>
+
+                  {/* Center Vector SVG QR Code */}
+                  <div className="pass-qr-frame">
+                    <DigitalQrCode passId={passData.passId || 'PASS-PUNE-JAN-846262'} candidate={passData.name || ''} />
+                  </div>
+
+                  {/* OR Divider Pill */}
+                  <div className="pass-or-pill">OR</div>
+
+                  <a href="https://zoom.us/j/nexaailab-pune" target="_blank" rel="noreferrer" className="verification-item right">
+                    <div className="zoom-circle-icon">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4.5 7.5A2.5 2.5 0 0 1 7 5h7a2.5 2.5 0 0 1 2.5 2.5v9a2.5 2.5 0 0 1-2.5 2.5H7A2.5 2.5 0 0 1 4.5 16.5v-9zM18 9.5l4-2.5v10l-4-2.5v-5z"/>
+                      </svg>
+                    </div>
+                    <span className="verif-text">Click to Join<br/>Zoom Session</span>
+                  </a>
+                </div>
+
+                {/* 5. Campus Skyline Architecture Vector */}
+                <div className="pass-campus-backdrop">
+                  <svg viewBox="0 0 540 110" preserveAspectRatio="none" className="campus-skyline-svg">
+                    <defs>
+                      <linearGradient id="skyGradFront" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#dff0fc" stopOpacity="0.85"/>
+                        <stop offset="100%" stopColor="#ffffff" stopOpacity="0"/>
+                      </linearGradient>
+                      <linearGradient id="bldgGradFront" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#b9e1fb" stopOpacity="0.7"/>
+                        <stop offset="100%" stopColor="#0284c7" stopOpacity="0.15"/>
+                      </linearGradient>
+                    </defs>
+                    <rect x="0" y="0" width="540" height="110" fill="url(#skyGradFront)"/>
+                    {/* Glass Campus Buildings */}
+                    <rect x="25" y="38" width="48" height="72" fill="url(#bldgGradFront)" rx="2"/>
+                    <rect x="85" y="22" width="62" height="88" fill="url(#bldgGradFront)" rx="3"/>
+                    <line x1="85" y1="42" x2="147" y2="42" stroke="#ffffff" strokeWidth="1" strokeDasharray="3,3"/>
+                    <line x1="85" y1="62" x2="147" y2="62" stroke="#ffffff" strokeWidth="1" strokeDasharray="3,3"/>
+                    <rect x="160" y="12" width="85" height="98" fill="url(#bldgGradFront)" rx="4"/>
+                    <line x1="160" y1="36" x2="245" y2="36" stroke="#ffffff" strokeWidth="1.5"/>
+                    <line x1="160" y1="60" x2="245" y2="60" stroke="#ffffff" strokeWidth="1.5"/>
+                    <line x1="160" y1="84" x2="245" y2="84" stroke="#ffffff" strokeWidth="1.5"/>
+                    <rect x="260" y="32" width="55" height="78" fill="url(#bldgGradFront)" rx="2"/>
+                    <rect x="330" y="18" width="75" height="92" fill="url(#bldgGradFront)" rx="3"/>
+                    <rect x="420" y="36" width="52" height="74" fill="url(#bldgGradFront)" rx="2"/>
+                    <rect x="485" y="44" width="45" height="66" fill="url(#bldgGradFront)" rx="2"/>
+                    {/* Architectural Accent Grid Lines */}
+                    <path d="M0 95 C 140 85, 360 102, 540 92 L540 110 L0 110 Z" fill="#0284c7" fillOpacity="0.18"/>
+                  </svg>
+                  <div className="campus-badge-label">
+                    <span className="dot"></span>
+                    <span>Pune Hinjawadi Innovation Campus • Phase 1</span>
+                  </div>
+                </div>
+
+                {/* 6. Dark Blue Footer: 4 Pillars */}
+                <div className="pass-four-pillars-footer">
+                  <div className="pillar-item">
+                    <div className="pillar-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                        <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+                      </svg>
+                    </div>
+                    <div className="pillar-title">Classroom<br/>Bootcamp</div>
+                  </div>
+
+                  <div className="pillar-item">
+                    <div className="pillar-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/>
+                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04z"/>
+                      </svg>
+                    </div>
+                    <div className="pillar-title">Hands-on<br/>Learning</div>
+                  </div>
+
+                  <div className="pillar-item">
+                    <div className="pillar-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                      </svg>
+                    </div>
+                    <div className="pillar-title">Expert<br/>Mentorship</div>
+                  </div>
+
+                  <div className="pillar-item">
+                    <div className="pillar-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 3v18h18"/>
+                        <path d="m19 9-5 5-4-4-3 3"/>
+                      </svg>
+                    </div>
+                    <div className="pillar-title">Build Real<br/>Projects</div>
+                  </div>
+                </div>
+
               </div>
 
-              <div className="pass-actions">
-                <button className="btn-primary full-width" onClick={() => { window.print(); }}>
-                  <Printer size={16} /> Print / Save Pass Ticket
+              {/* Action Buttons */}
+              <div className="pass-actions p-4 flex gap-3 no-print bg-slate-50 border-t border-slate-200">
+                <button className="btn-primary flex-1" onClick={() => window.print()}>
+                  <Printer size={16} /> Print / Save Pass Ticket (PDF)
                 </button>
-                <button className="btn-outline full-width mt-10" onClick={() => { setPassData(null); showToast('Pass confirmed and emailed to you!'); }}>
+                <button className="btn-outline" onClick={() => { setPassData(null); showToast('Pass confirmed and emailed to you!'); }}>
                   Done
                 </button>
               </div>
+
             </div>
+
           </div>
         </div>
       )}

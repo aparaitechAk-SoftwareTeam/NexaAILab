@@ -4376,3 +4376,459 @@ button {
   color: #ffffff;
   border-color: #0284c7;
 }
+
+
+/* ==========================================================================
+   OFFICIAL CLASSROOM RESERVATION PASS (EXACT REFERENCE SPECIFICATION)
+   ========================================================================== */
+.reservation-pass-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 28px;
+  overflow: hidden;
+  max-width: 580px;
+  width: 100%;
+  margin: 0 auto;
+  box-shadow: 0 20px 60px rgba(4, 45, 84, 0.15);
+  border: 1px solid #e0f2fe;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  transform-style: preserve-3d;
+}
+
+.reservation-pass-card:hover {
+  transform: translateY(-4px) scale(1.005);
+  box-shadow: 0 30px 75px rgba(4, 45, 84, 0.22);
+}
+
+/* Holographic Shimmer Sheen */
+.pass-shimmer-sheen {
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.4) 48%,
+    rgba(56, 189, 248, 0.25) 52%,
+    transparent 65%
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  animation: sweepSheenAnim 7s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 5;
+}
+
+@keyframes sweepSheenAnim {
+  0% { transform: translateY(-100%) rotate(25deg); opacity: 0; }
+  15% { opacity: 0.8; }
+  35% { transform: translateY(100%) rotate(25deg); opacity: 0; }
+  100% { transform: translateY(100%) rotate(25deg); opacity: 0; }
+}
+
+/* Watermark */
+.pass-watermark-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.pass-watermark-text {
+  font-family: 'Poppins', sans-serif;
+  font-size: 46px;
+  font-weight: 900;
+  color: rgba(4, 45, 84, 0.035);
+  letter-spacing: 8px;
+  transform: rotate(-25deg);
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pass-card-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.pass-card-header {
+  padding: 24px 28px 12px 28px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pass-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pass-3d-n-logo {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+}
+
+.n-logo-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 4px rgba(0, 102, 204, 0.2));
+}
+
+.pass-brand-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pass-brand-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 0.95;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 1px;
+}
+
+.brand-dark { color: #0f172a; }
+.brand-accent { color: #0066cc; }
+
+.pass-brand-divider {
+  width: 1.5px;
+  height: 34px;
+  background: #cbd5e1;
+}
+
+.pass-brand-tagline {
+  display: flex;
+  flex-direction: column;
+  font-size: 8px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.8px;
+  line-height: 1.25;
+}
+
+/* Curved Blue Badge */
+.pass-curved-seat-badge {
+  background: #0066cc;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 16px 26px 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
+  flex-shrink: 0;
+}
+
+.seat-badge-text {
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  line-height: 1.15;
+}
+
+.badge-primary {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.badge-secondary {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #e0f2fe;
+}
+
+.seat-badge-icon {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seat-badge-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: #ffffff;
+}
+
+/* Hero Course Title */
+.pass-hero-title-box {
+  padding: 4px 28px 12px 28px;
+  text-align: center;
+}
+
+.pass-main-course-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.pass-cohort-subtitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0066cc;
+  margin-top: 2px;
+  letter-spacing: -0.2px;
+}
+
+.pass-weekdays-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.22em;
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+/* Candidate Details Box */
+.pass-candidate-grid-card {
+  padding: 0 24px;
+}
+
+.pass-2x2-grid {
+  background: #ffffff;
+  border: 1.5px solid #dbeafe;
+  border-radius: 18px;
+  padding: 16px 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+  box-shadow: 0 2px 8px rgba(0, 102, 204, 0.04);
+}
+
+@media (max-width: 580px) {
+  .pass-2x2-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pass-grid-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pass-circle-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0066cc;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pass-circle-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pass-field-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.field-value {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.field-sub {
+  font-size: 11px;
+  color: #475569;
+  font-weight: 500;
+}
+
+/* Verification Bar */
+.pass-verification-bar {
+  margin: 14px 24px 0 24px;
+  background: #f0f7ff;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.verification-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  text-decoration: none;
+}
+
+.verif-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #bae6fd;
+  color: #0066cc;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.verif-icon-box svg {
+  width: 18px;
+  height: 18px;
+}
+
+.zoom-circle-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #0066cc;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 6px rgba(0, 102, 204, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.zoom-circle-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.verification-item:hover .zoom-circle-icon {
+  transform: scale(1.08);
+}
+
+.verif-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.pass-qr-frame {
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid #bae6fd;
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.08);
+  flex-shrink: 0;
+}
+
+.pass-or-pill {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 9.5px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* Campus Illustration */
+.pass-campus-illustration {
+  position: relative;
+  width: 100%;
+  height: 130px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.campus-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Navy Pillars Footer */
+.pass-navy-footer {
+  background: #002b49;
+  color: #ffffff;
+  padding: 12px 16px;
+}
+
+.pass-pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.pillar-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 4px;
+  border-right: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.pillar-cell:last-child {
+  border-right: none;
+}
+
+.pillar-icon {
+  width: 16px;
+  height: 16px;
+  color: #38bdf8;
+}
+
+.pillar-title {
+  font-size: 9px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+}
+
+/* A4 Print Layout with 100% Fidelity */
+@media print {
+  .reservation-pass-card {
+    transform: none !important;
+    box-shadow: none !important;
+    border: 2px solid #002b49 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .pass-shimmer-sheen {
+    display: none !important;
+  }
+}

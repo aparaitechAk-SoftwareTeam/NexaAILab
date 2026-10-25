@@ -2572,175 +2572,286 @@ function App() {
                     </div>
                   </div>
 
-                  {/* The Official Admission & Entry Pass (Printable Card) */}
-                  <div className="official-admission-pass-card admission-pass-printable">
-                    {/* Official NexaAI Lab Security Watermark Overlay */}
+                                    {/* The Official Admission & Seat Reservation Pass (Exact Visual Replica of Reference) */}
+                  <div className="reservation-pass-card admission-pass-printable">
+                    
+                    {/* Holographic Shimmer Sheen Animation */}
+                    <div className="pass-shimmer-sheen" aria-hidden="true"></div>
+
+                    {/* Background Security Watermark */}
                     <div className="pass-watermark-overlay" aria-hidden="true">
-                      <div className="pass-watermark-text">NEXA AI LAB • VERIFIED OFFICIAL ADMISSION PASS</div>
+                      <div className="pass-watermark-text">NEXA AI LAB • VERIFIED OFFICIAL PASS</div>
                     </div>
 
-                    {/* Holographic Header Band */}
-                    <div className="pass-header-band">
-                      <div className="pass-brand-flex">
-                        <div className="pass-logo-mark">
-                          <span className="logo-main">NEXA<span className="logo-ai">AI</span> LAB</span>
-                          <span className="logo-sub">PUNE INNOVATION HUB • PHASE 1 HINJAWADI</span>
-                        </div>
-                        <span className="pass-accredited-tag">
-                          <ShieldCheck size={13} /> NASSCOM & EDTECH ACCREDITED
-                        </span>
-                      </div>
-
-                      <div className="pass-title-row">
-                        <div>
-                          <h3 className="pass-doc-title">OFFICIAL ADMISSION & DIGITAL ENTRY PASS</h3>
-                          <span className="pass-doc-sub">Classroom Bootcamp & Physical Lab Seat Reservation</span>
-                        </div>
-                        <div className="pass-status-seal confirmed">
-                          <CheckCircle2 size={15} />
-                          <span>CONFIRMED CLASSROOM SEAT</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Pass Content Grid */}
-                    <div className="pass-grid-body">
-                      {/* Left Column: Candidate ID, Photo & Barcode/QR */}
-                      <div className="pass-candidate-col">
-                        <div className="pass-avatar-wrap">
-                          <div
-                            className="pass-avatar-circle"
-                            style={{ background: getAvatarBg(editingItem.name) }}
-                          >
-                            {getInitials(editingItem.name)}
+                    <div className="pass-card-content">
+                      {/* 1. Header: 3D Logo + Tagline + Curved Blue Reservation Badge */}
+                      <div className="pass-card-header">
+                        <div className="pass-logo-wrap">
+                          <div className="pass-3d-n-logo">
+                            <svg viewBox="0 0 48 48" className="n-logo-svg">
+                              <defs>
+                                <linearGradient id="nGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#0066cc"/>
+                                  <stop offset="100%" stopColor="#003366"/>
+                                </linearGradient>
+                                <linearGradient id="nGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#00d2ff"/>
+                                  <stop offset="100%" stopColor="#0066cc"/>
+                                </linearGradient>
+                              </defs>
+                              <path d="M8 8 L18 8 L18 40 L8 40 Z" fill="url(#nGrad1)"/>
+                              <path d="M18 8 L38 32 L38 40 L18 16 Z" fill="url(#nGrad2)"/>
+                              <path d="M30 8 L40 8 L40 40 L30 40 Z" fill="url(#nGrad1)"/>
+                            </svg>
                           </div>
-                          <div className="pass-verified-badge" title="Identity Verified">
-                            <Check size={12} />
-                          </div>
-                        </div>
 
-                        <h4 className="pass-candidate-name">{editingItem.name}</h4>
-                        <span className="pass-candidate-id-sub">Candidate Token #{editingItem._id ? editingItem._id.slice(-6).toUpperCase() : '846262'}</span>
-
-                        <div className="pass-contact-mini">
-                          <div className="contact-mini-row">
-                            <Phone size={12} className="text-mint shrink-0" />
-                            <span>{editingItem.code || '+91'} {editingItem.mobile}</span>
-                          </div>
-                          {editingItem.email && (
-                            <div className="contact-mini-row">
-                              <Mail size={12} className="text-blue shrink-0" />
-                              <span className="email-truncate">{editingItem.email}</span>
+                          <div className="pass-brand-text">
+                            <div className="pass-brand-title">
+                              <span className="brand-dark">NEXA</span>
+                              <span className="brand-accent">AI</span>
+                              <span className="brand-dark">LAB</span>
                             </div>
-                          )}
+                            <div className="pass-brand-divider"></div>
+                            <div className="pass-brand-tagline">
+                              <span>LEARN</span>
+                              <span>BUILD</span>
+                              <span>INNOVATE</span>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="pass-id-highlight-box">
-                          <span className="pass-id-label">OFFICIAL PASS CODE</span>
-                          <code className="pass-id-val">{effectivePassId}</code>
+                        {/* Curved Blue Reservation Badge */}
+                        <div className="pass-curved-seat-badge">
+                          <div className="seat-badge-text">
+                            <span className="badge-primary">Classroom Seat</span>
+                            <span className="badge-secondary">Reservation Pass</span>
+                          </div>
+                          <div className="seat-badge-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M6 4h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+                              <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
+                              <path d="M8 20v2"/>
+                              <path d="M16 20v2"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. Hero Course Title */}
+                      <div className="pass-hero-title-box">
+                        <h1 className="pass-main-course-title">{courseInfo.main || 'Full Stack AI & Autonomous Agents'}</h1>
+                        <div className="pass-cohort-subtitle">({courseInfo.sub || 'Classroom Bootcamp Weekdays'})</div>
+                        <div className="pass-weekdays-tag">( M O N D A Y &nbsp; T O &nbsp; F R I D A Y )</div>
+                      </div>
+
+                      {/* 3. Candidate Details Box (2x2 Grid with Blue Circular Icons) */}
+                      <div className="pass-candidate-grid-card">
+                        <div className="pass-2x2-grid">
+                          {/* Attendee Name */}
+                          <div className="pass-grid-item">
+                            <div className="pass-circle-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                              </svg>
+                            </div>
+                            <div className="pass-field-info">
+                              <span className="field-label">Attendee Name:</span>
+                              <strong className="field-value">{editingItem.name || 'Aparaitech Software'}</strong>
+                            </div>
+                          </div>
+
+                          {/* Pass ID */}
+                          <div className="pass-grid-item">
+                            <div className="pass-circle-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="3" y="4" width="18" height="16" rx="3"/>
+                                <circle cx="9" cy="10" r="2"/>
+                                <line x1="15" y1="8" x2="17" y2="8"/>
+                                <line x1="15" y1="12" x2="17" y2="12"/>
+                                <line x1="7" y1="16" x2="17" y2="16"/>
+                              </svg>
+                            </div>
+                            <div className="pass-field-info">
+                              <span className="field-label">Pass ID:</span>
+                              <strong className="field-value font-mono">{effectivePassId}</strong>
+                            </div>
+                          </div>
+
+                          {/* Date & Time */}
+                          <div className="pass-grid-item">
+                            <div className="pass-circle-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                              </svg>
+                            </div>
+                            <div className="pass-field-info">
+                              <span className="field-label">Date & Time:</span>
+                              <strong className="field-value">{slotInfo.datePart || '12th Jan 2027'}</strong>
+                              <span className="field-sub">{slotInfo.timePart || '9:30 AM – 1:30 PM (4 Hours / Day)'}</span>
+                            </div>
+                          </div>
+
+                          {/* Mode / Platform */}
+                          <div className="pass-grid-item">
+                            <div className="pass-circle-icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                              </svg>
+                            </div>
+                            <div className="pass-field-info">
+                              <span className="field-label">Mode / Platform:</span>
+                              <strong className="field-value">Pune Hinjawadi Innovation Campus</strong>
+                              <span className="field-sub">(Phase 1, Near Rajiv Gandhi Infotech Park)</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 4. Dual Verification & Access Bar (Scan at Entrance OR Zoom) */}
+                      <div className="pass-verification-bar">
+                        <div className="verification-item left">
+                          <div className="verif-icon-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            </svg>
+                          </div>
+                          <span className="verif-text">Scan at Campus<br/>Entrance</span>
                         </div>
 
-                        <div className="pass-qr-barcode-wrap">
+                        {/* Center Vector SVG QR Code */}
+                        <div className="pass-qr-frame">
                           <DigitalQrCode passId={effectivePassId} candidate={editingItem.name} />
-                          <DigitalBarcode passId={effectivePassId} />
+                        </div>
+
+                        {/* OR Divider Pill */}
+                        <div className="pass-or-pill">OR</div>
+
+                        <a href="https://zoom.us/j/nexaailab-pune" target="_blank" rel="noreferrer" className="verification-item right">
+                          <div className="zoom-circle-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M4 6a2 2 0 00-2 2v8a2 2 0 002 2h10a2 2 0 002-2v-2.586l3.293 3.293a1 1 0 001.707-.707V7.414a1 1 0 00-1.707-.707L16 10V8a2 2 0 00-2-2H4z"/>
+                            </svg>
+                          </div>
+                          <span className="verif-text">Click to Join<br/>Zoom Session</span>
+                        </a>
+                      </div>
+
+                      {/* 5. Hinjawadi Pune Tech Campus Architecture Graphic */}
+                      <div className="pass-campus-illustration">
+                        <svg viewBox="0 0 600 170" preserveAspectRatio="xMidYMid slice" className="campus-svg">
+                          <defs>
+                            <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#dff0fc"/>
+                              <stop offset="100%" stopColor="#bfe0f8"/>
+                            </linearGradient>
+                            <linearGradient id="glassG" x1="0" y1="0" x2="1" y2="1">
+                              <stop offset="0%" stopColor="#8ec5ec"/>
+                              <stop offset="50%" stopColor="#d4eaf7"/>
+                              <stop offset="100%" stopColor="#6ea8d6"/>
+                            </linearGradient>
+                            <linearGradient id="waveG" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#002b49"/>
+                              <stop offset="100%" stopColor="#004b80"/>
+                            </linearGradient>
+                          </defs>
+
+                          <rect width="600" height="170" fill="url(#skyG)"/>
+                          <rect x="20" y="45" width="180" height="100" fill="#e2edf6" stroke="#9bbdd4" strokeWidth="1.5"/>
+                          <g fill="url(#glassG)" stroke="#bed8eb" strokeWidth="0.8">
+                            <rect x="30" y="55" width="22" height="11"/>
+                            <rect x="60" y="55" width="22" height="11"/>
+                            <rect x="90" y="55" width="22" height="11"/>
+                            <rect x="120" y="55" width="22" height="11"/>
+                            <rect x="150" y="55" width="22" height="11"/>
+                            <rect x="30" y="73" width="22" height="11"/>
+                            <rect x="60" y="73" width="22" height="11"/>
+                            <rect x="90" y="73" width="22" height="11"/>
+                            <rect x="120" y="73" width="22" height="11"/>
+                            <rect x="150" y="73" width="22" height="11"/>
+                            <rect x="30" y="91" width="22" height="11"/>
+                            <rect x="60" y="91" width="22" height="11"/>
+                            <rect x="90" y="91" width="22" height="11"/>
+                            <rect x="120" y="91" width="22" height="11"/>
+                            <rect x="150" y="91" width="22" height="11"/>
+                          </g>
+
+                          <rect x="210" y="20" width="200" height="130" fill="#f0f7fc" stroke="#8cb2cc" strokeWidth="1.8"/>
+                          <rect x="200" y="14" width="220" height="8" fill="#0066cc"/>
+                          <g fill="url(#glassG)" stroke="#a8cde5" strokeWidth="1">
+                            <rect x="225" y="32" width="30" height="14"/>
+                            <rect x="265" y="32" width="30" height="14"/>
+                            <rect x="305" y="32" width="30" height="14"/>
+                            <rect x="345" y="32" width="30" height="14"/>
+                            <rect x="225" y="54" width="30" height="14"/>
+                            <rect x="265" y="54" width="30" height="14"/>
+                            <rect x="305" y="54" width="30" height="14"/>
+                            <rect x="345" y="54" width="30" height="14"/>
+                            <rect x="225" y="76" width="30" height="14"/>
+                            <rect x="265" y="76" width="30" height="14"/>
+                            <rect x="305" y="76" width="30" height="14"/>
+                            <rect x="345" y="76" width="30" height="14"/>
+                          </g>
+
+                          <rect x="420" y="50" width="160" height="100" fill="#e2edf6" stroke="#9bbdd4" strokeWidth="1.5"/>
+                          <g fill="url(#glassG)" stroke="#bed8eb" strokeWidth="0.8">
+                            <rect x="435" y="60" width="24" height="11"/>
+                            <rect x="470" y="60" width="24" height="11"/>
+                            <rect x="505" y="60" width="24" height="11"/>
+                            <rect x="540" y="60" width="24" height="11"/>
+                            <rect x="435" y="78" width="24" height="11"/>
+                            <rect x="470" y="78" width="24" height="11"/>
+                            <rect x="505" y="78" width="24" height="11"/>
+                            <rect x="540" y="78" width="24" height="11"/>
+                          </g>
+
+                          <circle cx="50" cy="140" r="14" fill="#3fa34d" opacity="0.85"/>
+                          <circle cx="80" cy="140" r="16" fill="#2e7d32" opacity="0.9"/>
+                          <circle cx="140" cy="140" r="14" fill="#3fa34d" opacity="0.85"/>
+                          <circle cx="460" cy="140" r="16" fill="#2e7d32" opacity="0.9"/>
+                          <circle cx="510" cy="140" r="14" fill="#3fa34d" opacity="0.85"/>
+
+                          <path d="M 0,145 Q 150,120 300,140 T 600,130 L 600,170 L 0,170 Z" fill="url(#waveG)"/>
+                        </svg>
+                      </div>
+
+                      {/* 6. Dark Navy Footer Strip (The 4 Pillars) */}
+                      <div className="pass-navy-footer">
+                        <div className="pass-pillars-grid">
+                          <div className="pillar-cell">
+                            <svg className="pillar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                            </svg>
+                            <span className="pillar-title">Classroom Bootcamp</span>
+                          </div>
+
+                          <div className="pillar-cell">
+                            <svg className="pillar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                            <span className="pillar-title">Hands-on Learning</span>
+                          </div>
+
+                          <div className="pillar-cell">
+                            <svg className="pillar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                            <span className="pillar-title">Expert Mentorship</span>
+                          </div>
+
+                          <div className="pillar-cell">
+                            <svg className="pillar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            <span className="pillar-title">Build Real Projects</span>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Right Column: Program, Venue, Session Timings & Guidelines */}
-                      <div className="pass-cohort-col">
-                        <div className="pass-field-group">
-                          <span className="pass-field-label">ENROLLED PROGRAM / SPECIALIZATION</span>
-                          <div className="pass-program-name-wrap">
-                            <BookOpen size={16} className="text-blue shrink-0" />
-                            <strong className="pass-program-title">{courseInfo.main}</strong>
-                          </div>
-                          {courseInfo.sub && (
-                            <span className="pass-cohort-badge">{courseInfo.sub}</span>
-                          )}
-                        </div>
-
-                        <div className="pass-info-2col">
-                          <div className="pass-info-cell">
-                            <span className="pass-field-label">RESERVED SESSION TIMINGS</span>
-                            <div className="pass-cell-val">
-                              <Clock size={14} className="text-teal shrink-0" />
-                              <strong>{slotInfo.timePart}</strong>
-                            </div>
-                          </div>
-
-                          <div className="pass-info-cell">
-                            <span className="pass-field-label">ORIENTATION / START DATE</span>
-                            <div className="pass-cell-val">
-                              <Calendar size={14} className="text-teal shrink-0" />
-                              <strong>{slotInfo.datePart || '19th Jan 2027'}</strong>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pass-field-group">
-                          <span className="pass-field-label">REPORTING CAMPUS & WORKSTATION</span>
-                          <div className="pass-venue-box">
-                            <MapPin size={16} className="text-emerald shrink-0" />
-                            <div>
-                              <strong>Pune Innovation Hub (Phase 1, Hinjawadi)</strong>
-                              <p>Near Rajiv Gandhi Infotech Park, Hinjawadi Phase 1, Pune, MH 411057</p>
-                              <span className="pass-station-tag">📍 Assigned: Desk Bay 01 • GPU / AI Station Access Ready</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pass-candidate-extra-grid">
-                          <div className="extra-info-item">
-                            <span className="extra-label">CANDIDATE BACKGROUND</span>
-                            <strong className="extra-val">{editingItem.background || 'Technical / Engineering Graduate'}</strong>
-                          </div>
-                          <div className="extra-info-item">
-                            <span className="extra-label">INQUIRY SOURCE</span>
-                            <span className="extra-val">{editingItem.source || 'Website Classroom Pass'}</span>
-                          </div>
-                          <div className="extra-info-item">
-                            <span className="extra-label">TARGET LOCATION</span>
-                            <span className="extra-val">{editingItem.city || 'Pune (Hinjawadi)'}</span>
-                          </div>
-                          <div className="extra-info-item">
-                            <span className="extra-label">ADMISSION STATUS</span>
-                            <span className="extra-val status-tag">{editingItem.status || 'Confirmed'}</span>
-                          </div>
-                        </div>
-
-                        {editingItem.notes && (
-                          <div className="pass-counselor-notes-box">
-                            <span className="extra-label">COUNSELOR / CANDIDATE NOTES</span>
-                            <p className="counselor-notes-text">"{editingItem.notes}"</p>
-                          </div>
-                        )}
-
-                        <div className="pass-guidelines-box">
-                          <span className="guidelines-title">
-                            <ShieldCheck size={13} className="text-blue" /> CANDIDATE REPORTING INSTRUCTIONS:
-                          </span>
-                          <ul>
-                            <li>Please arrive 15 minutes prior to session start time with this digital pass or printed copy.</li>
-                            <li>Carry one government-issued photo ID (Aadhaar / Driving License / Passport) for verification.</li>
-                            <li>Dedicated workstation, high-speed compute sandbox, and course kits provided on arrival.</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Security Footer Band */}
-                    <div className="pass-security-footer">
-                      <div className="security-hash-col">
-                        <span>SECURITY VERIFICATION: SHA-256</span>
-                        <code>{editingItem._id ? `HASH:${editingItem._id.slice(-8)}-PUNE-AUTH-2027` : 'HASH:NXA-72188-AUTH-2027'}</code>
-                      </div>
-                      <div className="security-seal-col">
-                        <span className="security-seal-icon">★</span>
-                        <span>NexaAI Lab Admissions Verification Seal • Pune Center</span>
-                      </div>
-                      <div className="security-date-col">
-                        <span>ISSUED: {new Date(editingItem.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                      </div>
                     </div>
                   </div>
 
