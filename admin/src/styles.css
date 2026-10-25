@@ -3814,3 +3814,509 @@ button {
     print-color-adjust: exact;
   }
 }
+
+
+/* ==========================================================================
+   SMALL BOX PROPER ALIGNMENT (CRM HIGH-DENSITY LEADS PIPELINE)
+   ========================================================================== */
+.leads-pipeline-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 1300px) {
+  .leads-pipeline-board {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .leads-pipeline-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pipeline-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 520px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  gap: 10px;
+}
+
+.pipeline-col-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1;
+}
+
+.pipeline-empty-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 24px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-style: italic;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+}
+
+/* Small Proper Card Container (~170px-190px tall) */
+.lead-data-card.lead-card-small {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  transition: all 0.15s ease;
+  min-height: auto !important;
+}
+
+.lead-data-card.lead-card-small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  border-color: #cbd5e1;
+}
+
+.lead-card-head.small {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lead-card-profile.small {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.candidate-avatar-circle.small {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.lead-card-profile-info.small {
+  min-width: 0;
+  flex: 1;
+}
+
+.lead-card-name.small {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.candidate-badges-wrap.small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.candidate-badges-wrap.small .source-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.pass-chip.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 800;
+  font-family: monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  cursor: pointer;
+}
+
+.status-select-wrap.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.select-status.small {
+  border: none;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  padding-right: 0;
+}
+
+/* Small Stacked Contact Box */
+.lead-card-contact-box.small {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.contact-row-item.small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.contact-row-item.small.location {
+  padding-top: 2px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.contact-row-item.small .contact-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-row-item.small .location-badge-text {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #059669;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Small Program Box */
+.lead-card-course-box.small {
+  padding: 2px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: auto;
+}
+
+.lead-card-course-header.small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.course-main-text.small {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.course-sub-badge.small {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+/* Small Single-line Slot Box */
+.lead-card-slot-box.small {
+  margin-top: 0;
+}
+
+.slot-pill-card.small {
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 6px;
+  padding: 4px 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10.5px;
+}
+
+.slot-time-line.small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.slot-date-mini {
+  font-size: 10px;
+  color: #115e59;
+  font-weight: 600;
+}
+
+/* Small Footer */
+.lead-card-footer.small {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 2px;
+}
+
+.lead-card-timestamp-text.small {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.lead-card-actions.small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-card-action.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.btn-card-action.delete.small {
+  padding: 3px 5px;
+}
+
+/* ==========================================================================
+   OFFICIAL PASS WATERMARK & ALL CUSTOMER DETAILS SPECIFICATIONS
+   ========================================================================== */
+.official-admission-pass-card {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* Watermark Overlay */
+.pass-watermark-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.pass-watermark-text {
+  font-family: 'Poppins', sans-serif;
+  font-size: 44px;
+  font-weight: 900;
+  color: rgba(4, 45, 84, 0.04);
+  letter-spacing: 6px;
+  transform: rotate(-25deg);
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pass-header-band,
+.pass-grid-body,
+.pass-security-footer {
+  position: relative;
+  z-index: 2;
+}
+
+/* Extra Customer Details in Pass */
+.pass-candidate-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.extra-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extra-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.extra-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.extra-val.status-tag {
+  color: #059669;
+}
+
+.pass-counselor-notes-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.counselor-notes-text {
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   PROPER PRINT / SAVE PDF ALIGNMENT (A4 SPECIFICATION)
+   ========================================================================== */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .pass-no-print,
+  .admin-sidebar,
+  .admin-header,
+  .modal-overlay:not(:has(.admission-pass-printable)),
+  .modal-header,
+  .modal-footer {
+    display: none !important;
+  }
+
+  .modal-overlay,
+  .modal-card {
+    position: static !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .admission-pass-printable,
+  .admission-pass-printable * {
+    visibility: visible !important;
+  }
+
+  .admission-pass-printable {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border: 2px solid #0f172a !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pass-header-band {
+    background: #021a32 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pass-security-footer {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .pass-watermark-overlay {
+    display: flex !important;
+    visibility: visible !important;
+  }
+
+  .pass-watermark-text {
+    visibility: visible !important;
+    color: rgba(0, 0, 0, 0.06) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

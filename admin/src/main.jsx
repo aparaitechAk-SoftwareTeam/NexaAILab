@@ -219,12 +219,16 @@ function App() {
   const [loginMsg, setLoginMsg] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const [activeApi, setActiveApi] = useState(() => {
-    return localStorage.getItem('admin_active_api') || LOCAL_API_DEFAULT;
+    const saved = localStorage.getItem('admin_active_api');
+    if (saved && (isLocalHost || saved.includes('render'))) return saved;
+    return isLocalHost ? LOCAL_API_DEFAULT : CLOUD_API_DEFAULT;
   });
   const [apiSource, setApiSource] = useState(() => {
     const saved = localStorage.getItem('admin_active_api') || '';
-    return saved.includes('render') ? 'cloud' : 'local';
+    if (saved) return saved.includes('render') ? 'cloud' : 'local';
+    return isLocalHost ? 'local' : 'cloud';
   });
 
   // Seamlessly sync with real backend JWT token on startup
@@ -322,7 +326,7 @@ function App() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchWithTimeout = async (url, opt = {}, timeoutMs = 2800) => {
+  const fetchWithTimeout = async (url, opt = {}, timeoutMs = 15000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -357,7 +361,7 @@ function App() {
           if (authRes.ok && authData.token) {
             localStorage.setItem('token', authData.token);
             setToken(authData.token);
-            const retryRes = await fetch(`${baseUrl}/admin${path}`, {
+            const retryRes = await fetchWithTimeout(`${baseUrl}/admin${path}`, {
               ...opt,
               headers: {
                 'Content-Type': 'application/json',
@@ -365,24 +369,23 @@ function App() {
                 ...(opt.headers || {})
               }
             });
-            return await retryRes.json();
+            if (!retryRes.ok) {
+              const errBody = await retryRes.json().catch(() => ({}));
+              throw new Error(errBody.message || errBody.error || `Server error (${retryRes.status})`);
+            }
+            return await retryRes.json().catch(() => ({ ok: true }));
           }
-        } catch (e) {}
-
-        const masterToken = 'nexa_admin_token_master';
-        localStorage.setItem('token', masterToken);
-        setToken(masterToken);
-        const retryMasterRes = await fetch(`${baseUrl}/admin${path}`, {
-          ...opt,
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${masterToken}`,
-            ...(opt.headers || {})
-          }
-        });
-        return await retryMasterRes.json();
+        } catch (e) {
+          console.warn('Auto-login refresh error:', e.message);
+        }
       }
-      return await res.json();
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.message || errBody.error || `Server error (${res.status})`);
+      }
+
+      return await res.json().catch(() => ({ ok: true }));
     };
 
     try {
@@ -559,13 +562,21 @@ function App() {
 
   // CRUD Operations
   const handleDelete = async (id) => {
+    if (!id) {
+      showToast('Error: Item ID is missing.', 'error');
+      return;
+    }
     if (!window.confirm('Are you sure you want to delete this item?')) return;
+    
+    // Optimistic deletion
+    setData(prev => prev.filter(item => item._id !== id));
     try {
       await api(`/${page}/${id}`, { method: 'DELETE' });
       showToast('Item deleted successfully.');
-      loadData();
+      loadData(false);
     } catch (e) {
-      showToast('Failed to delete item.', 'error');
+      showToast('Failed to delete item: ' + (e.message || 'Server error'), 'error');
+      loadData(false);
     }
   };
 
@@ -759,24 +770,38 @@ function App() {
         if (payload.originalFee) payload.originalFee = formatRupee(cleanFeeNumber(payload.originalFee, 68000));
       }
 
+      // Remove immutable MongoDB fields
+      delete payload._id;
+      delete payload.__v;
+      delete payload.createdAt;
+      delete payload.updatedAt;
+
       if (activeModal.startsWith('add-')) {
-        await api(`/${page}`, {
+        const created = await api(`/${page}`, {
           method: 'POST',
           body: JSON.stringify(payload)
         });
         showToast('Created successfully!');
+        if (created && created._id) {
+          setData(prev => [created, ...prev]);
+        }
       } else if (activeModal.startsWith('edit-')) {
-        await api(`/${page}/${editingItem._id}`, {
+        const targetId = editingItem?._id;
+        if (!targetId) throw new Error('Item ID missing for update');
+        const updated = await api(`/${page}/${targetId}`, {
           method: 'PUT',
           body: JSON.stringify(payload)
         });
         showToast('Updated successfully!');
+        if (updated && updated._id) {
+          setData(prev => prev.map(item => item._id === targetId ? updated : item));
+        }
       }
       setActiveModal(null);
       setEditingItem(null);
-      loadData();
+      loadData(false);
     } catch (err) {
-      showToast('Error saving data: ' + err.message, 'error');
+      showToast('Error saving data: ' + (err.message || 'Server error'), 'error');
     }
   };
 
@@ -899,51 +924,50 @@ function App() {
     const slotInfo = formatSlotTimings(l.preferredSlot, l.date, l.time);
     const isSlotBooking = (l.source && (l.source.includes('Slot') || l.source.includes('Appointment') || l.source.includes('Pass'))) || l.passId;
     const isMasterclass = l.source && (l.source.includes('Masterclass') || l.source.includes('Workshop'));
-    const isPune = (l.city || '').toLowerCase().includes('pune');
     const statusLower = (l.status || 'New').toLowerCase();
     const effectivePassId = l.passId || `PASS-PUNE-JAN-${l._id ? l._id.slice(-6).toUpperCase() : '846262'}`;
 
     return (
-      <div key={l._id} className="lead-data-card">
-        {/* Card Head: Avatar, Candidate Title & Status Selector */}
-        <div className="lead-card-head">
-          <div className="lead-card-profile">
+      <div key={l._id} className="lead-data-card lead-card-small">
+        {/* Compact Card Header */}
+        <div className="lead-card-head small">
+          <div className="lead-card-profile small">
             <div
-              className="candidate-avatar-circle"
+              className="candidate-avatar-circle small"
               style={{ background: getAvatarBg(l.name) }}
               title={l.name}
             >
               {getInitials(l.name)}
             </div>
-            <div className="lead-card-profile-info">
-              <h4 className="lead-card-name" title={l.name}>{l.name}</h4>
-              <div className="candidate-badges-wrap">
+            <div className="lead-card-profile-info small">
+              <h4 className="lead-card-name small" title={l.name}>{l.name}</h4>
+              <div className="candidate-badges-wrap small">
                 <span className={`source-pill ${isSlotBooking ? 'booking' : isMasterclass ? 'masterclass' : 'web'}`}>
-                  {isSlotBooking ? '📍 Classroom Seat' : isMasterclass ? '✨ Masterclass' : '🌐 Web Inquiry'}
+                  {isSlotBooking ? 'Classroom' : isMasterclass ? 'Masterclass' : 'Inquiry'}
                 </span>
                 <span
-                  className="pass-chip"
-                  title="Click to copy official pass code"
+                  className="pass-chip small"
+                  title="Click to copy pass code"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigator.clipboard?.writeText(effectivePassId);
-                    showToast(`Copied ${effectivePassId} to clipboard!`);
+                    showToast(`Copied ${effectivePassId}`);
                   }}
                 >
-                  <Ticket size={11} /> {effectivePassId}
+                  <Ticket size={10} /> {effectivePassId.slice(-6)}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Clean Status Selector */}
-          <div className={`status-select-wrap status-${statusLower}`}>
+          {/* Compact Status Pill */}
+          <div className={`status-select-wrap small status-${statusLower}`}>
             <span className="status-dot"></span>
             <select
-              className={`select-status select-${statusLower}`}
+              className={`select-status small select-${statusLower}`}
               value={l.status || 'New'}
               onChange={e => handleUpdateLeadStatus(l._id, e.target.value)}
-              title="Update candidate pipeline status"
+              title="Update status"
             >
               <option value="New">New</option>
               <option value="Contacted">Contacted</option>
@@ -953,92 +977,85 @@ function App() {
           </div>
         </div>
 
-        {/* Structured Contact Details Box (No Wrapping Glitches) */}
-        <div className="lead-card-contact-box">
-          <div className="contact-row-item">
-            <Phone size={13} className="text-mint shrink-0" />
+        {/* Small Stacked Contact Box (No Side-by-Side Wraps) */}
+        <div className="lead-card-contact-box small">
+          <div className="contact-row-item small">
+            <Phone size={11} className="text-mint shrink-0" />
             <a href={`tel:${l.mobile}`} className="contact-value phone-link" title="Call candidate">
               {l.code || '+91'} {l.mobile}
             </a>
           </div>
           {l.email && (
-            <div className="contact-row-item">
-              <Mail size={13} className="text-blue shrink-0" />
+            <div className="contact-row-item small">
+              <Mail size={11} className="text-blue shrink-0" />
               <a href={`mailto:${l.email}`} className="contact-value email-link" title={l.email}>
                 {l.email}
               </a>
             </div>
           )}
-          <div className="contact-row-item location">
-            <MapPin size={13} className="text-emerald shrink-0" />
+          <div className="contact-row-item small location">
+            <MapPin size={11} className="text-emerald shrink-0" />
             <span className="location-badge-text">{l.city || 'Pune (Hinjawadi)'}</span>
           </div>
         </div>
 
-        {/* Course / Program Box */}
-        <div className="lead-card-course-box">
-          <div className="lead-card-course-header">
-            <BookOpen size={14} className="text-blue shrink-0" />
-            <strong className="course-main-text" title={courseInfo.main}>{courseInfo.main}</strong>
+        {/* Compact Program Title */}
+        <div className="lead-card-course-box small">
+          <div className="lead-card-course-header small">
+            <BookOpen size={12} className="text-blue shrink-0" />
+            <strong className="course-main-text small" title={courseInfo.main}>{courseInfo.main}</strong>
           </div>
           {courseInfo.sub && (
-            <span className="course-sub-badge">{courseInfo.sub}</span>
-          )}
-          {l.background && (
-            <small className="candidate-bg-text">👤 Background: {l.background}</small>
+            <span className="course-sub-badge small">{courseInfo.sub}</span>
           )}
         </div>
 
-        {/* Reserved Slot & Schedule Box */}
-        <div className="lead-card-slot-box">
-          <div className="slot-pill-card">
-            <div className="slot-time-line">
-              <Clock size={13} className="text-teal shrink-0" />
-              <strong>{slotInfo.timePart}</strong>
+        {/* Compact Single-line Slot Pill */}
+        <div className="lead-card-slot-box small">
+          <div className="slot-pill-card small">
+            <div className="slot-time-line small">
+              <Clock size={11} className="text-teal shrink-0" />
+              <span>{slotInfo.timePart}</span>
             </div>
             {slotInfo.datePart && (
-              <div className="slot-date-line">
-                <Calendar size={13} className="text-teal shrink-0" />
-                <small>{slotInfo.datePart}</small>
-              </div>
+              <span className="slot-date-mini">• {slotInfo.datePart.replace(' 2027', '')}</span>
             )}
           </div>
         </div>
 
-        {/* Footer: Date & Balanced Action Buttons */}
-        <div className="lead-card-footer">
-          <div className="lead-card-timestamp">
-            <Calendar size={12} />
-            <span>{new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-          </div>
+        {/* Compact Footer: Date & Micro Actions */}
+        <div className="lead-card-footer small">
+          <span className="lead-card-timestamp-text small">
+            {new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          </span>
 
-          <div className="lead-card-actions">
+          <div className="lead-card-actions small">
             <button
               type="button"
-              className="btn-card-action view"
+              className="btn-card-action view small"
               onClick={() => {
                 setEditingItem({ ...l, passId: effectivePassId });
                 setCounselorNoteText(l.notes || '');
                 setActiveModal('lead-details');
               }}
-              title="View & Generate Official Digital Admission Pass"
+              title="View Admission Dossier & Pass"
             >
-              <Eye size={13} /> <span>Dossier</span>
+              <Eye size={11} /> <span>Dossier</span>
             </button>
             <a
               href={`tel:${l.mobile}`}
-              className="btn-card-action call"
+              className="btn-card-action call small"
               title="Call Candidate"
             >
-              <Phone size={13} /> <span>Call</span>
+              <Phone size={11} /> <span>Call</span>
             </a>
             <button
               type="button"
-              className="btn-card-action delete"
+              className="btn-card-action delete small"
               onClick={() => handleDelete(l._id)}
               title="Delete Candidate Record"
             >
-              <Trash2 size={13} />
+              <Trash2 size={11} />
             </button>
           </div>
         </div>
@@ -2547,6 +2564,11 @@ function App() {
 
                   {/* The Official Admission & Entry Pass (Printable Card) */}
                   <div className="official-admission-pass-card admission-pass-printable">
+                    {/* Official NexaAI Lab Security Watermark Overlay */}
+                    <div className="pass-watermark-overlay" aria-hidden="true">
+                      <div className="pass-watermark-text">NEXA AI LAB • VERIFIED OFFICIAL ADMISSION PASS</div>
+                    </div>
+
                     {/* Holographic Header Band */}
                     <div className="pass-header-band">
                       <div className="pass-brand-flex">
@@ -2656,6 +2678,32 @@ function App() {
                             </div>
                           </div>
                         </div>
+
+                        <div className="pass-candidate-extra-grid">
+                          <div className="extra-info-item">
+                            <span className="extra-label">CANDIDATE BACKGROUND</span>
+                            <strong className="extra-val">{editingItem.background || 'Technical / Engineering Graduate'}</strong>
+                          </div>
+                          <div className="extra-info-item">
+                            <span className="extra-label">INQUIRY SOURCE</span>
+                            <span className="extra-val">{editingItem.source || 'Website Classroom Pass'}</span>
+                          </div>
+                          <div className="extra-info-item">
+                            <span className="extra-label">TARGET LOCATION</span>
+                            <span className="extra-val">{editingItem.city || 'Pune (Hinjawadi)'}</span>
+                          </div>
+                          <div className="extra-info-item">
+                            <span className="extra-label">ADMISSION STATUS</span>
+                            <span className="extra-val status-tag">{editingItem.status || 'Confirmed'}</span>
+                          </div>
+                        </div>
+
+                        {editingItem.notes && (
+                          <div className="pass-counselor-notes-box">
+                            <span className="extra-label">COUNSELOR / CANDIDATE NOTES</span>
+                            <p className="counselor-notes-text">"{editingItem.notes}"</p>
+                          </div>
+                        )}
 
                         <div className="pass-guidelines-box">
                           <span className="guidelines-title">
