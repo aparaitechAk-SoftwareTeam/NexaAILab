@@ -6,7 +6,7 @@ import {
   Eye, EyeOff, Filter, ShieldCheck, Database, Calendar, Clock, MapPin,
   Sparkles, ExternalLink, X, Cpu, Percent, Zap, Ticket, Phone, Mail,
   CheckCircle2, AlertCircle, ArrowUpRight, LayoutGrid, List, Columns3,
-  Printer, Share2, Copy, Award, Inbox
+  Printer, Share2, Copy, Award, Inbox, Maximize2, Minimize2
 } from 'lucide-react';
 import './styles.css';
 
@@ -317,7 +317,8 @@ function App() {
 
   // Modals
   const [activeModal, setActiveModal] = useState(null);
-  const [counselorNoteText, setCounselorNoteText] = useState(''); // 'add-course' | 'edit-course' | 'add-testimonial' | 'edit-testimonial' | 'add-report' | 'edit-report' | 'add-faq' | 'edit-faq' | 'lead-details' | null
+  const [counselorNoteText, setCounselorNoteText] = useState('');
+  const [isFullScreenDossier, setIsFullScreenDossier] = useState(false); // 'add-course' | 'edit-course' | 'add-testimonial' | 'edit-testimonial' | 'add-report' | 'edit-report' | 'add-faq' | 'edit-faq' | 'lead-details' | null
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
 
@@ -2495,7 +2496,7 @@ function App() {
 
       {/* ================= MODALS: ADD / EDIT ITEMS ================= */}
       {activeModal && (
-        <div className="admin-modal-overlay" onClick={() => setActiveModal(null)}>
+        <div className="admin-modal-overlay" onClick={() => { setActiveModal(null); setIsFullScreenDossier(false); }}>
           <div className="admin-modal-card" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{activeModal.replace('-', ' ').toUpperCase()}</h2>
@@ -2511,7 +2512,7 @@ function App() {
               const effectivePassId = editingItem.passId || `PASS-PUNE-JAN-${editingItem._id ? editingItem._id.slice(-6).toUpperCase() : '846262'}`;
 
               return (
-                <div className="lead-dossier-pass-container">
+                <div className={`lead-dossier-pass-container ${isFullScreenDossier ? 'fullscreen' : ''}`}>
                   {/* Top Action Toolbar (Hidden during print) */}
                   <div className="pass-toolbar-actions pass-no-print">
                     <div className="pass-toolbar-left">
@@ -2527,6 +2528,15 @@ function App() {
                     </div>
 
                     <div className="pass-toolbar-right">
+                      <button
+                        type="button"
+                        className={`btn-pass-action fullscreen ${isFullScreenDossier ? 'active' : ''}`}
+                        onClick={() => setIsFullScreenDossier(!isFullScreenDossier)}
+                        title={isFullScreenDossier ? 'Exit Full Screen Mode' : 'View in Full Screen Mode (Reference Design)'}
+                      >
+                        {isFullScreenDossier ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                        <span>{isFullScreenDossier ? 'Exit Full Screen' : 'Full Screen'}</span>
+                      </button>
                       <button
                         type="button"
                         className="btn-pass-action print"
