@@ -5,7 +5,8 @@ import {
   HelpCircle, LogOut, Trash2, Plus, RefreshCw, Edit, Check, Search,
   Eye, EyeOff, Filter, ShieldCheck, Database, Calendar, Clock, MapPin,
   Sparkles, ExternalLink, X, Cpu, Percent, Zap, Ticket, Phone, Mail,
-  CheckCircle2, AlertCircle, ArrowUpRight, LayoutGrid, List, Columns3
+  CheckCircle2, AlertCircle, ArrowUpRight, LayoutGrid, List, Columns3,
+  Printer, Share2, Copy, Award, Inbox
 } from 'lucide-react';
 import './styles.css';
 
@@ -97,6 +98,83 @@ const playLeadChime = () => {
     osc.start();
     osc.stop(ctx.currentTime + 0.45);
   } catch (e) {}
+};
+
+
+// ================= PROFESSIONAL DIGITAL ADMISSION PASS COMPONENTS =================
+const DigitalQrCode = ({ passId = 'PASS-PUNE-JAN-846262', candidate = '' }) => {
+  const hash = Array.from(passId + candidate).reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0);
+  const size = 110;
+  const cells = 15;
+  const cellSize = size / cells;
+
+  const isDark = (r, c) => {
+    if ((r < 5 && c < 5) || (r < 5 && c >= cells - 5) || (r >= cells - 5 && c < 5)) {
+      if (r === 0 || r === 4 || c === 0 || c === 4 || (r === cells - 1 || r === cells - 5 || c === cells - 1 || c === cells - 5)) return true;
+      if (r >= 1 && r <= 3 && c >= 1 && c <= 3) return true;
+      if (r >= 1 && r <= 3 && c >= cells - 4 && c <= cells - 2) return true;
+      if (r >= cells - 4 && r <= cells - 2 && c >= 1 && c <= 3) return true;
+      return false;
+    }
+    if (r >= 6 && r <= 8 && c >= 6 && c <= 8) return false;
+    const bit = (hash * (r * 13 + c * 7 + 11)) % 100;
+    return bit > 45;
+  };
+
+  const rects = [];
+  for (let r = 0; r < cells; r++) {
+    for (let c = 0; c < cells; c++) {
+      if (isDark(r, c)) {
+        rects.push(
+          <rect
+            key={`${r}-${c}`}
+            x={c * cellSize}
+            y={r * cellSize}
+            width={cellSize - 0.5}
+            height={cellSize - 0.5}
+            fill="#0f172a"
+            rx={0.6}
+          />
+        );
+      }
+    }
+  }
+
+  return (
+    <div className="digital-qr-wrap" title={`Verified Admission QR for ${passId}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <rect width={size} height={size} fill="#ffffff" rx={8} />
+        {rects}
+        <rect x={size / 2 - 12} y={size / 2 - 12} width={24} height={24} fill="#0284c7" rx={4} />
+        <text x={size / 2} y={size / 2 + 4} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="800" fontFamily="sans-serif">NX</text>
+      </svg>
+      <span className="qr-scan-hint">Scan at Reception Desk</span>
+    </div>
+  );
+};
+
+const DigitalBarcode = ({ passId = 'PASS-PUNE-JAN-846262' }) => {
+  const bars = [3, 1, 2, 4, 1, 3, 2, 1, 4, 2, 1, 3, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 4, 1, 2, 3];
+  return (
+    <div className="digital-barcode-wrap" title={`Admission Barcode: ${passId}`}>
+      <svg width="170" height="38" viewBox="0 0 170 38">
+        <rect width="170" height="38" fill="#ffffff" rx={4} />
+        <g transform="translate(8, 3)">
+          {bars.map((w, idx) => (
+            <rect
+              key={idx}
+              x={idx * 4.4}
+              y={0}
+              width={w > 2 ? 2.4 : 1.2}
+              height={24}
+              fill="#0f172a"
+            />
+          ))}
+        </g>
+      </svg>
+      <code className="barcode-code-text">{passId}</code>
+    </div>
+  );
 };
 
 function App() {
@@ -234,7 +312,8 @@ function App() {
   };
 
   // Modals
-  const [activeModal, setActiveModal] = useState(null); // 'add-course' | 'edit-course' | 'add-testimonial' | 'edit-testimonial' | 'add-report' | 'edit-report' | 'add-faq' | 'edit-faq' | 'lead-details' | null
+  const [activeModal, setActiveModal] = useState(null);
+  const [counselorNoteText, setCounselorNoteText] = useState(''); // 'add-course' | 'edit-course' | 'add-testimonial' | 'edit-testimonial' | 'add-report' | 'edit-report' | 'add-faq' | 'edit-faq' | 'lead-details' | null
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
 
@@ -487,6 +566,39 @@ function App() {
       loadData();
     } catch (e) {
       showToast('Failed to delete item.', 'error');
+    }
+  };
+
+
+  const handleQuickAdjustSeats = async (batch, delta) => {
+    const newSeats = Math.max(0, (batch.seatsLeft || 0) + delta);
+    setData(prev => prev.map(item => item._id === batch._id ? { ...item, seatsLeft: newSeats } : item));
+    try {
+      await api(`/batches/${batch._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...batch, seatsLeft: newSeats })
+      });
+      showToast(`Updated seats to ${newSeats}`);
+      loadData(false);
+    } catch {
+      showToast('Failed to update seats', 'error');
+      loadData(false);
+    }
+  };
+
+  const handleToggleBatchStatus = async (batch) => {
+    const nextStatus = batch.active === false ? true : false;
+    setData(prev => prev.map(item => item._id === batch._id ? { ...item, active: nextStatus } : item));
+    try {
+      await api(`/batches/${batch._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...batch, active: nextStatus })
+      });
+      showToast(`Batch marked as ${nextStatus ? 'Active' : 'Closed'}`);
+      loadData(false);
+    } catch {
+      showToast('Failed to update batch status', 'error');
+      loadData(false);
     }
   };
 
@@ -789,10 +901,11 @@ function App() {
     const isMasterclass = l.source && (l.source.includes('Masterclass') || l.source.includes('Workshop'));
     const isPune = (l.city || '').toLowerCase().includes('pune');
     const statusLower = (l.status || 'New').toLowerCase();
+    const effectivePassId = l.passId || `PASS-PUNE-JAN-${l._id ? l._id.slice(-6).toUpperCase() : '846262'}`;
 
     return (
       <div key={l._id} className="lead-data-card">
-        {/* Card Head */}
+        {/* Card Head: Avatar, Candidate Title & Status Selector */}
         <div className="lead-card-head">
           <div className="lead-card-profile">
             <div
@@ -808,30 +921,29 @@ function App() {
                 <span className={`source-pill ${isSlotBooking ? 'booking' : isMasterclass ? 'masterclass' : 'web'}`}>
                   {isSlotBooking ? '📍 Classroom Seat' : isMasterclass ? '✨ Masterclass' : '🌐 Web Inquiry'}
                 </span>
-                {l.passId && (
-                  <span
-                    className="pass-chip"
-                    title="Click to copy digital pass code"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigator.clipboard?.writeText(l.passId);
-                      showToast(`Copied ${l.passId} to clipboard!`);
-                    }}
-                  >
-                    <Ticket size={11} /> {l.passId}
-                  </span>
-                )}
+                <span
+                  className="pass-chip"
+                  title="Click to copy official pass code"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard?.writeText(effectivePassId);
+                    showToast(`Copied ${effectivePassId} to clipboard!`);
+                  }}
+                >
+                  <Ticket size={11} /> {effectivePassId}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Live Status Select */}
+          {/* Clean Status Selector */}
           <div className={`status-select-wrap status-${statusLower}`}>
             <span className="status-dot"></span>
             <select
               className={`select-status select-${statusLower}`}
               value={l.status || 'New'}
               onChange={e => handleUpdateLeadStatus(l._id, e.target.value)}
+              title="Update candidate pipeline status"
             >
               <option value="New">New</option>
               <option value="Contacted">Contacted</option>
@@ -841,28 +953,33 @@ function App() {
           </div>
         </div>
 
-        {/* Contact Details Bar */}
-        <div className="lead-card-contact-row">
-          <a href={`tel:${l.mobile}`} className="contact-item-link phone" title="Call candidate">
-            <Phone size={13} className="text-mint" />
-            <span>{l.code || '+91'} {l.mobile}</span>
-          </a>
-          {l.email && (
-            <a href={`mailto:${l.email}`} className="contact-item-link email" title="Email candidate">
-              <Mail size={13} className="text-blue" />
-              <span>{l.email}</span>
+        {/* Structured Contact Details Box (No Wrapping Glitches) */}
+        <div className="lead-card-contact-box">
+          <div className="contact-row-item">
+            <Phone size={13} className="text-mint shrink-0" />
+            <a href={`tel:${l.mobile}`} className="contact-value phone-link" title="Call candidate">
+              {l.code || '+91'} {l.mobile}
             </a>
+          </div>
+          {l.email && (
+            <div className="contact-row-item">
+              <Mail size={13} className="text-blue shrink-0" />
+              <a href={`mailto:${l.email}`} className="contact-value email-link" title={l.email}>
+                {l.email}
+              </a>
+            </div>
           )}
-          <span className={`city-pill ${isPune ? 'pune' : 'other'}`}>
-            <MapPin size={12} /> {l.city || 'Pune (Hinjawadi)'}
-          </span>
+          <div className="contact-row-item location">
+            <MapPin size={13} className="text-emerald shrink-0" />
+            <span className="location-badge-text">{l.city || 'Pune (Hinjawadi)'}</span>
+          </div>
         </div>
 
-        {/* Course / Program */}
+        {/* Course / Program Box */}
         <div className="lead-card-course-box">
           <div className="lead-card-course-header">
-            <BookOpen size={14} className="text-blue" />
-            <strong className="course-main-text">{courseInfo.main}</strong>
+            <BookOpen size={14} className="text-blue shrink-0" />
+            <strong className="course-main-text" title={courseInfo.main}>{courseInfo.main}</strong>
           </div>
           {courseInfo.sub && (
             <span className="course-sub-badge">{courseInfo.sub}</span>
@@ -872,23 +989,23 @@ function App() {
           )}
         </div>
 
-        {/* Reserved Slot & Schedule */}
+        {/* Reserved Slot & Schedule Box */}
         <div className="lead-card-slot-box">
           <div className="slot-pill-card">
             <div className="slot-time-line">
-              <Clock size={13} className="text-teal" />
+              <Clock size={13} className="text-teal shrink-0" />
               <strong>{slotInfo.timePart}</strong>
             </div>
             {slotInfo.datePart && (
               <div className="slot-date-line">
-                <Calendar size={13} className="text-teal" />
+                <Calendar size={13} className="text-teal shrink-0" />
                 <small>{slotInfo.datePart}</small>
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer: Date & Actions */}
+        {/* Footer: Date & Balanced Action Buttons */}
         <div className="lead-card-footer">
           <div className="lead-card-timestamp">
             <Calendar size={12} />
@@ -897,26 +1014,29 @@ function App() {
 
           <div className="lead-card-actions">
             <button
+              type="button"
               className="btn-card-action view"
               onClick={() => {
-                setEditingItem(l);
+                setEditingItem({ ...l, passId: effectivePassId });
+                setCounselorNoteText(l.notes || '');
                 setActiveModal('lead-details');
               }}
-              title="View Candidate Dossier"
+              title="View & Generate Official Digital Admission Pass"
             >
-              <Eye size={13} /> Dossier
+              <Eye size={13} /> <span>Dossier</span>
             </button>
             <a
               href={`tel:${l.mobile}`}
               className="btn-card-action call"
               title="Call Candidate"
             >
-              <Phone size={13} /> Call
+              <Phone size={13} /> <span>Call</span>
             </a>
             <button
+              type="button"
               className="btn-card-action delete"
               onClick={() => handleDelete(l._id)}
-              title="Delete Lead"
+              title="Delete Candidate Record"
             >
               <Trash2 size={13} />
             </button>
@@ -1589,14 +1709,39 @@ function App() {
                                 <Clock size={12} style={{ display: 'inline', verticalAlign: '-1px', color: '#64748b' }} /> {b.time}
                               </td>
                               <td>
-                                <span className={`seats-pill ${Number(b.seatsLeft) <= 4 ? 'urgent' : ''}`}>
-                                  {b.seatsLeft || 0} / {b.totalSeats || 25} left
-                                </span>
+                                <div className="table-seats-cell">
+                                  <span className={`seats-pill ${Number(b.seatsLeft) <= 4 ? 'urgent' : ''}`}>
+                                    {b.seatsLeft || 0} / {b.totalSeats || 25} left
+                                  </span>
+                                  <div className="table-seat-stepper">
+                                    <button
+                                      type="button"
+                                      className="btn-mini-step"
+                                      onClick={() => handleQuickAdjustSeats(b, -1)}
+                                      title="Seats - 1"
+                                    >
+                                      -
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-mini-step"
+                                      onClick={() => handleQuickAdjustSeats(b, 1)}
+                                      title="Seats + 1"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
                               </td>
                               <td>
-                                <span className={`status-pill ${b.active !== false ? 'pill-closed' : 'pill-contacted'}`}>
-                                  {b.active !== false ? 'Active' : 'Closed'}
-                                </span>
+                                <button
+                                  type="button"
+                                  className={`status-pill clickable ${b.active !== false ? 'pill-closed' : 'pill-contacted'}`}
+                                  onClick={() => handleToggleBatchStatus(b)}
+                                  title="Click to toggle Active / Closed status"
+                                >
+                                  {b.active !== false ? '● Active' : '○ Closed'}
+                                </button>
                               </td>
                               <td className="actions-col">
                                 <button className="icon-btn edit" onClick={() => openEditModal(b)} title="Edit Batch/Lab">
@@ -2091,9 +2236,14 @@ function App() {
                             {b.type === 'AI & Robotics Lab' ? <Cpu size={12} /> : <BookOpen size={12} />}
                             {b.type === 'AI & Robotics Lab' ? 'Robotics Lab' : 'Classroom'}
                           </span>
-                          <span className={`status-pill ${b.active !== false ? 'pill-closed' : 'pill-contacted'}`}>
-                            {b.active !== false ? 'Active' : 'Closed'}
-                          </span>
+                          <button
+                            type="button"
+                            className={`status-pill clickable ${b.active !== false ? 'pill-closed' : 'pill-contacted'}`}
+                            onClick={() => handleToggleBatchStatus(b)}
+                            title="Click to toggle Active / Closed status for this batch"
+                          >
+                            {b.active !== false ? '● Active' : '○ Closed'}
+                          </button>
                         </div>
 
                         <h4 className="batch-card-title">{b.title}</h4>
@@ -2115,15 +2265,49 @@ function App() {
                           </div>
                         </div>
 
+                        {/* Interactive Seats Progress & Stepper */}
+                        <div className="batch-seats-control-box">
+                          <div className="seats-info-row">
+                            <span className="seats-count-text">
+                              <strong>{b.seatsLeft || 0}</strong> of <strong>{b.totalSeats || 25}</strong> seats available
+                            </span>
+                            <div className="quick-seat-stepper">
+                              <button
+                                type="button"
+                                className="btn-seat-step minus"
+                                onClick={() => handleQuickAdjustSeats(b, -1)}
+                                title="Reserve 1 seat (seats - 1)"
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-seat-step plus"
+                                onClick={() => handleQuickAdjustSeats(b, 1)}
+                                title="Add 1 seat (seats + 1)"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                          <div className="seats-progress-track">
+                            <div
+                              className={`seats-progress-bar ${Number(b.seatsLeft) <= 4 ? 'urgent' : ''}`}
+                              style={{ width: `${Math.min(100, Math.max(5, (((b.totalSeats || 25) - (b.seatsLeft || 0)) / (b.totalSeats || 25)) * 100))}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
                         <div className="batch-card-footer">
-                          <span className={`seats-pill ${Number(b.seatsLeft) <= 4 ? 'urgent' : ''}`}>
-                            {b.seatsLeft || 0} / {b.totalSeats || 25} seats left
-                          </span>
+                          <div className="batch-fee-pills">
+                            {b.fee && <span className="batch-offer-fee">{b.fee}</span>}
+                            {b.originalFee && <span className="batch-orig-fee">{b.originalFee}</span>}
+                          </div>
                           <div className="action-buttons-group">
-                            <button className="icon-btn edit" onClick={() => openEditModal(b)} title="Edit Batch/Lab">
+                            <button className="icon-btn edit" onClick={() => openEditModal(b)} title="Edit Batch / Lab Schedule">
                               <Edit size={15} />
                             </button>
-                            <button className="icon-btn delete" onClick={() => handleDelete(b._id)} title="Delete Batch/Lab">
+                            <button className="icon-btn delete" onClick={() => handleDelete(b._id)} title="Delete Batch / Lab Record">
                               <Trash2 size={15} />
                             </button>
                           </div>
@@ -2303,79 +2487,279 @@ function App() {
               </button>
             </div>
 
-            {/* LEAD DETAILS MODAL */}
-            {activeModal === 'lead-details' && editingItem && (
-              <div className="lead-detail-box">
-                <div className="detail-row">
-                  <span>Candidate Name:</span>
-                  <strong>{editingItem.name}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Phone Number:</span>
-                  <strong>{editingItem.code || '+91'} {editingItem.mobile}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Email:</span>
-                  <strong>{editingItem.email}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Target City:</span>
-                  <strong>{editingItem.city || 'Online'}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>Inquiry / Program:</span>
-                  <strong>{editingItem.course || 'General Callback'}</strong>
-                </div>
-                {editingItem.preferredSlot && (
-                  <div className="detail-row">
-                    <span>Reserved Slot / Timings:</span>
-                    <strong style={{ color: '#0f766e' }}>{editingItem.preferredSlot}</strong>
-                  </div>
-                )}
-                {editingItem.passId && (
-                  <div className="detail-row">
-                    <span>Pass / Ticket ID:</span>
-                    <code>{editingItem.passId}</code>
-                  </div>
-                )}
-                {editingItem.background && (
-                  <div className="detail-row">
-                    <span>Candidate Background:</span>
-                    <strong>{editingItem.background}</strong>
-                  </div>
-                )}
-                <div className="detail-row">
-                  <span>Lead Source:</span>
-                  <strong>{editingItem.source || 'Website'}</strong>
-                </div>
-                {editingItem.notes && (
-                  <div className="detail-row">
-                    <span>Notes / Requirements:</span>
-                    <span>{editingItem.notes}</span>
-                  </div>
-                )}
-                <div className="detail-row">
-                  <span>Submitted At:</span>
-                  <strong>{new Date(editingItem.createdAt).toLocaleString()}</strong>
-                </div>
+            {/* ================= OFFICIAL CANDIDATE ADMISSION PASS & DOSSIER ================= */}
+            {activeModal === 'lead-details' && editingItem && (() => {
+              const courseInfo = formatCourseTitle(editingItem.course);
+              const slotInfo = formatSlotTimings(editingItem.preferredSlot, editingItem.date, editingItem.time);
+              const effectivePassId = editingItem.passId || `PASS-PUNE-JAN-${editingItem._id ? editingItem._id.slice(-6).toUpperCase() : '846262'}`;
 
-                <div className="status-update-row">
-                  <label>Update Status:</label>
-                  <select
-                    value={editingItem.status || 'New'}
-                    onChange={async e => {
-                      await handleUpdateLeadStatus(editingItem._id, e.target.value);
-                      setEditingItem({ ...editingItem, status: e.target.value });
-                    }}
-                  >
-                    <option value="New">New</option>
-                    <option value="Contacted">Contacted</option>
-                    <option value="Qualified">Qualified</option>
-                    <option value="Closed">Closed</option>
-                  </select>
+              return (
+                <div className="lead-dossier-pass-container">
+                  {/* Top Action Toolbar (Hidden during print) */}
+                  <div className="pass-toolbar-actions pass-no-print">
+                    <div className="pass-toolbar-left">
+                      <span className="pass-badge-glow">
+                        <Sparkles size={14} className="text-mint" /> Official Candidate Admission Pass
+                      </span>
+                      <span className="pass-id-chip" title="Click to copy Pass Code" onClick={() => {
+                        navigator.clipboard?.writeText(effectivePassId);
+                        showToast(`Copied ${effectivePassId} to clipboard!`);
+                      }}>
+                        <Ticket size={13} /> {effectivePassId}
+                      </span>
+                    </div>
+
+                    <div className="pass-toolbar-right">
+                      <button
+                        type="button"
+                        className="btn-pass-action print"
+                        onClick={() => window.print()}
+                        title="Print official physical pass or Save as PDF"
+                      >
+                        <Printer size={15} />
+                        <span>Print / Save PDF</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-pass-action copy"
+                        onClick={() => {
+                          const passText = `🎫 NEXA AI LAB OFFICIAL ADMISSION PASS\nCandidate: ${editingItem.name}\nPass ID: ${effectivePassId}\nProgram: ${courseInfo.main}\nSlot: ${slotInfo.timePart}\nDate: ${slotInfo.datePart || '19th Jan 2027'}\nCampus: Pune Innovation Hub, Phase 1 Hinjawadi\nHelpline: +91 72188 02129`;
+                          navigator.clipboard?.writeText(passText);
+                          showToast('✓ Candidate Admission Pass copied to clipboard!');
+                        }}
+                        title="Copy full pass details to clipboard"
+                      >
+                        <Copy size={15} />
+                        <span>Copy Pass</span>
+                      </button>
+                      <a
+                        href={`https://wa.me/${(editingItem.code || '91').replace('+', '')}${String(editingItem.mobile).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${editingItem.name}! Here is your confirmed Admission Pass for NexaAI Lab Pune:\n🎫 Pass ID: ${effectivePassId}\nProgram: ${courseInfo.main}\nSlot: ${slotInfo.timePart} (${slotInfo.datePart || 'Starts 19th Jan 2027'})\nCampus: Pune Phase 1 Hinjawadi Innovation Hub.\nPlease present this pass on your reporting date.`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-pass-action whatsapp"
+                        title="Send pass directly via WhatsApp"
+                      >
+                        <Share2 size={15} />
+                        <span>WhatsApp Pass</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* The Official Admission & Entry Pass (Printable Card) */}
+                  <div className="official-admission-pass-card admission-pass-printable">
+                    {/* Holographic Header Band */}
+                    <div className="pass-header-band">
+                      <div className="pass-brand-flex">
+                        <div className="pass-logo-mark">
+                          <span className="logo-main">NEXA<span className="logo-ai">AI</span> LAB</span>
+                          <span className="logo-sub">PUNE INNOVATION HUB • PHASE 1 HINJAWADI</span>
+                        </div>
+                        <span className="pass-accredited-tag">
+                          <ShieldCheck size={13} /> NASSCOM & EDTECH ACCREDITED
+                        </span>
+                      </div>
+
+                      <div className="pass-title-row">
+                        <div>
+                          <h3 className="pass-doc-title">OFFICIAL ADMISSION & DIGITAL ENTRY PASS</h3>
+                          <span className="pass-doc-sub">Classroom Bootcamp & Physical Lab Seat Reservation</span>
+                        </div>
+                        <div className="pass-status-seal confirmed">
+                          <CheckCircle2 size={15} />
+                          <span>CONFIRMED CLASSROOM SEAT</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pass Content Grid */}
+                    <div className="pass-grid-body">
+                      {/* Left Column: Candidate ID, Photo & Barcode/QR */}
+                      <div className="pass-candidate-col">
+                        <div className="pass-avatar-wrap">
+                          <div
+                            className="pass-avatar-circle"
+                            style={{ background: getAvatarBg(editingItem.name) }}
+                          >
+                            {getInitials(editingItem.name)}
+                          </div>
+                          <div className="pass-verified-badge" title="Identity Verified">
+                            <Check size={12} />
+                          </div>
+                        </div>
+
+                        <h4 className="pass-candidate-name">{editingItem.name}</h4>
+                        <span className="pass-candidate-id-sub">Candidate Token #{editingItem._id ? editingItem._id.slice(-6).toUpperCase() : '846262'}</span>
+
+                        <div className="pass-contact-mini">
+                          <div className="contact-mini-row">
+                            <Phone size={12} className="text-mint shrink-0" />
+                            <span>{editingItem.code || '+91'} {editingItem.mobile}</span>
+                          </div>
+                          {editingItem.email && (
+                            <div className="contact-mini-row">
+                              <Mail size={12} className="text-blue shrink-0" />
+                              <span className="email-truncate">{editingItem.email}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pass-id-highlight-box">
+                          <span className="pass-id-label">OFFICIAL PASS CODE</span>
+                          <code className="pass-id-val">{effectivePassId}</code>
+                        </div>
+
+                        <div className="pass-qr-barcode-wrap">
+                          <DigitalQrCode passId={effectivePassId} candidate={editingItem.name} />
+                          <DigitalBarcode passId={effectivePassId} />
+                        </div>
+                      </div>
+
+                      {/* Right Column: Program, Venue, Session Timings & Guidelines */}
+                      <div className="pass-cohort-col">
+                        <div className="pass-field-group">
+                          <span className="pass-field-label">ENROLLED PROGRAM / SPECIALIZATION</span>
+                          <div className="pass-program-name-wrap">
+                            <BookOpen size={16} className="text-blue shrink-0" />
+                            <strong className="pass-program-title">{courseInfo.main}</strong>
+                          </div>
+                          {courseInfo.sub && (
+                            <span className="pass-cohort-badge">{courseInfo.sub}</span>
+                          )}
+                        </div>
+
+                        <div className="pass-info-2col">
+                          <div className="pass-info-cell">
+                            <span className="pass-field-label">RESERVED SESSION TIMINGS</span>
+                            <div className="pass-cell-val">
+                              <Clock size={14} className="text-teal shrink-0" />
+                              <strong>{slotInfo.timePart}</strong>
+                            </div>
+                          </div>
+
+                          <div className="pass-info-cell">
+                            <span className="pass-field-label">ORIENTATION / START DATE</span>
+                            <div className="pass-cell-val">
+                              <Calendar size={14} className="text-teal shrink-0" />
+                              <strong>{slotInfo.datePart || '19th Jan 2027'}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pass-field-group">
+                          <span className="pass-field-label">REPORTING CAMPUS & WORKSTATION</span>
+                          <div className="pass-venue-box">
+                            <MapPin size={16} className="text-emerald shrink-0" />
+                            <div>
+                              <strong>Pune Innovation Hub (Phase 1, Hinjawadi)</strong>
+                              <p>Near Rajiv Gandhi Infotech Park, Hinjawadi Phase 1, Pune, MH 411057</p>
+                              <span className="pass-station-tag">📍 Assigned: Desk Bay 01 • GPU / AI Station Access Ready</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pass-guidelines-box">
+                          <span className="guidelines-title">
+                            <ShieldCheck size={13} className="text-blue" /> CANDIDATE REPORTING INSTRUCTIONS:
+                          </span>
+                          <ul>
+                            <li>Please arrive 15 minutes prior to session start time with this digital pass or printed copy.</li>
+                            <li>Carry one government-issued photo ID (Aadhaar / Driving License / Passport) for verification.</li>
+                            <li>Dedicated workstation, high-speed compute sandbox, and course kits provided on arrival.</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Security Footer Band */}
+                    <div className="pass-security-footer">
+                      <div className="security-hash-col">
+                        <span>SECURITY VERIFICATION: SHA-256</span>
+                        <code>{editingItem._id ? `HASH:${editingItem._id.slice(-8)}-PUNE-AUTH-2027` : 'HASH:NXA-72188-AUTH-2027'}</code>
+                      </div>
+                      <div className="security-seal-col">
+                        <span className="security-seal-icon">★</span>
+                        <span>NexaAI Lab Admissions Verification Seal • Pune Center</span>
+                      </div>
+                      <div className="security-date-col">
+                        <span>ISSUED: {new Date(editingItem.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Candidate CRM Operations & Counselor Notes Section (No-Print) */}
+                  <div className="pass-crm-operations pass-no-print">
+                    <div className="crm-status-changer-bar">
+                      <div className="status-changer-label">
+                        <label>Update Candidate Pipeline Status:</label>
+                        <div className={`status-select-wrap status-${(editingItem.status || 'New').toLowerCase()}`}>
+                          <span className="status-dot"></span>
+                          <select
+                            className={`select-status select-${(editingItem.status || 'New').toLowerCase()}`}
+                            value={editingItem.status || 'New'}
+                            onChange={async (e) => {
+                              const nextStatus = e.target.value;
+                              await handleUpdateLeadStatus(editingItem._id, nextStatus);
+                              setEditingItem({ ...editingItem, status: nextStatus });
+                            }}
+                          >
+                            <option value="New">New (Awaiting Call)</option>
+                            <option value="Contacted">Contacted & Dialed</option>
+                            <option value="Qualified">Qualified Candidate</option>
+                            <option value="Closed">Closed & Enrolled</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="quick-contact-actions">
+                        <a href={`tel:${editingItem.mobile}`} className="btn-quick-call">
+                          <Phone size={14} /> Call Candidate Now
+                        </a>
+                        {editingItem.email && (
+                          <a href={`mailto:${editingItem.email}`} className="btn-quick-email">
+                            <Mail size={14} /> Send Email
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Counselor Notes Field with Save */}
+                    <div className="candidate-notes-editor">
+                      <label>
+                        <span>Admissions Counselor Remarks / Interaction Notes</span>
+                        <small>Keep track of discussions, fee quotes, preferred batch dates, and qualification status</small>
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={counselorNoteText}
+                        onChange={e => setCounselorNoteText(e.target.value)}
+                        placeholder="e.g. Candidate inquired about 2:00 PM batch in Hinjawadi. Background in Python. Scheduled campus visit for Friday."
+                      />
+                      <div className="notes-save-row">
+                        <button
+                          type="button"
+                          className="btn-save-note"
+                          onClick={async () => {
+                            try {
+                              await api(`/leads/${editingItem._id}`, {
+                                method: 'PUT',
+                                body: JSON.stringify({ notes: counselorNoteText })
+                              });
+                              showToast('✓ Counselor notes saved successfully!');
+                              setEditingItem({ ...editingItem, notes: counselorNoteText });
+                              loadData(false);
+                            } catch (err) {
+                              showToast('Failed to save notes', 'error');
+                            }
+                          }}
+                        >
+                          <Check size={14} /> Save Counselor Notes
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ADD LEAD MODAL */}
             {activeModal === 'add-lead' && (
